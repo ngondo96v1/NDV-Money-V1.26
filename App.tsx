@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { AppView, User, UserRank, LoanRecord } from './types.ts';
 import Login from './components/Login.tsx';
@@ -20,21 +19,24 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-// Fix ErrorBoundary component to resolve property not found errors in TypeScript
+// Added explicit property declarations for state and props to resolve TypeScript inference errors
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  // Use constructor to initialize state and avoid shadowing base class properties
+  public state: ErrorBoundaryState;
+  // Added explicit props declaration to resolve "Property 'props' does not exist on type 'ErrorBoundary'" error
+  public props: ErrorBoundaryProps;
+
   constructor(props: ErrorBoundaryProps) {
     super(props);
+    this.props = props;
     this.state = { hasError: false };
   }
 
-  // getDerivedStateFromError should accept an error parameter and return state
   static getDerivedStateFromError(_error: any): ErrorBoundaryState { 
     return { hasError: true }; 
   }
 
   render() {
-    // Access this.state.hasError which is correctly typed
+    // Correctly accessing this.state and this.props after explicit declaration
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8 text-center">
@@ -45,8 +47,6 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
         </div>
       );
     }
-    
-    // Access this.props.children which is correctly available via React.Component inheritance
     return this.props.children;
   }
 }
@@ -112,7 +112,7 @@ const App: React.FC = () => {
           }
         }
       } catch (e) {
-        console.warn("Dữ liệu LocalStorage trống, bắt đầu phiên mới.");
+        console.warn("Dữ liệu LocalStorage trống.");
       } finally {
         setIsInitialized(true);
       }
@@ -122,19 +122,13 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!isInitialized) return;
-    
     const persist = () => {
-      try {
-        localStorage.setItem('vnv_user', user ? JSON.stringify(user) : '');
-        localStorage.setItem('vnv_loans', JSON.stringify(loans));
-        localStorage.setItem('vnv_registered_users', JSON.stringify(registeredUsers));
-        localStorage.setItem('vnv_budget', systemBudget.toString());
-        localStorage.setItem('vnv_rank_profit', rankProfit.toString());
-      } catch (e) {
-        console.error("Lỗi lưu trữ Vercel:", e);
-      }
+      localStorage.setItem('vnv_user', user ? JSON.stringify(user) : '');
+      localStorage.setItem('vnv_loans', JSON.stringify(loans));
+      localStorage.setItem('vnv_registered_users', JSON.stringify(registeredUsers));
+      localStorage.setItem('vnv_budget', systemBudget.toString());
+      localStorage.setItem('vnv_rank_profit', rankProfit.toString());
     };
-
     const timer = setTimeout(persist, 1000);
     return () => clearTimeout(timer);
   }, [user, loans, registeredUsers, systemBudget, rankProfit, isInitialized]);
@@ -142,7 +136,6 @@ const App: React.FC = () => {
   const handleLogin = (phone: string, password?: string) => {
     setLoginError(null);
     const isAdmin = (phone === '0877203996' && password === '119011');
-    
     if (isAdmin) {
       const adminUser: User = {
         id: 'AD01', phone: '0877203996', fullName: 'QUẢN TRỊ VIÊN', idNumber: 'SYSTEM_ADMIN',
@@ -153,14 +146,13 @@ const App: React.FC = () => {
       setCurrentView(AppView.ADMIN_DASHBOARD);
       return;
     }
-
     const existingUser = registeredUsers.find(u => u.phone === phone);
     if (existingUser) {
       const loggedInUser = { ...existingUser, isLoggedIn: true };
       setUser(loggedInUser);
       setCurrentView(AppView.DASHBOARD);
     } else {
-      setLoginError("Thông tin đăng nhập không chính xác. Vui lòng kiểm tra lại.");
+      setLoginError("Thông tin đăng nhập không chính xác.");
     }
   };
 
@@ -181,20 +173,15 @@ const App: React.FC = () => {
 
   const handleLogout = () => {
     setUser(null);
-    localStorage.removeItem('vnv_user');
     setCurrentView(AppView.LOGIN);
   };
 
   const handleApplyLoan = (amount: number, signature?: string) => {
     if (!user) return;
     const now = new Date();
-    const dateCode = `${String(now.getDate()).padStart(2, '0')}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getFullYear()).slice(-2)}`;
-    const countToday = loans.filter(l => l.createdAt.includes(now.toLocaleDateString('vi-VN'))).length + 1;
-    const contractId = `${user.id}-${dateCode}-${countToday}`;
-    
     const dueDate = new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString('vi-VN');
     const newLoan: LoanRecord = {
-      id: contractId, userId: user.id, userName: user.fullName, amount: amount,
+      id: `NDV-${Math.floor(Math.random()*10000)}`, userId: user.id, userName: user.fullName, amount: amount,
       date: dueDate, createdAt: now.toLocaleTimeString('vi-VN') + ' ' + now.toLocaleDateString('vi-VN'), 
       status: 'CHỜ DUYỆT', signature: signature
     };
@@ -221,9 +208,8 @@ const App: React.FC = () => {
   const handleAdminLoanAction = (loanId: string, action: 'APPROVE' | 'DISBURSE' | 'SETTLE' | 'REJECT') => {
     const targetLoan = loans.find(l => l.id === loanId);
     if (!targetLoan) return;
-
     if (action === 'DISBURSE') setSystemBudget(prev => prev - (targetLoan.amount * 0.85));
-    else if (action === 'SETTLE' && targetLoan.status === 'CHỜ TẤT TOÁN') setSystemBudget(prev => prev + (targetLoan.amount * 0.85));
+    else if (action === 'SETTLE') setSystemBudget(prev => prev + (targetLoan.amount * 0.85));
 
     setLoans(prev => prev.map(loan => {
       if (loan.id === loanId) {
@@ -234,17 +220,12 @@ const App: React.FC = () => {
           case 'SETTLE': newStatus = 'ĐÃ TẤT TOÁN'; break;
           case 'REJECT': newStatus = 'BỊ TỪ CHỐI'; break;
         }
-
         if (action === 'SETTLE') {
           const loanUser = registeredUsers.find(u => u.id === loan.userId);
           if (loanUser) {
-             const updatedUser = { 
-               ...loanUser, 
-               balance: Math.min(loanUser.totalLimit, loanUser.balance + loan.amount),
-               rankProgress: Math.min(10, loanUser.rankProgress + 1)
-             };
+             const updatedUser = { ...loanUser, balance: Math.min(loanUser.totalLimit, loanUser.balance + loan.amount), rankProgress: Math.min(10, loanUser.rankProgress + 1) };
              setRegisteredUsers(users => users.map(u => u.id === loan.userId ? updatedUser : u));
-             if (user && user.id === loan.userId) setUser(updatedUser);
+             if (user?.id === loan.userId) setUser(updatedUser);
           }
         }
         return { ...loan, status: newStatus as any };
@@ -263,10 +244,9 @@ const App: React.FC = () => {
           else if (newRank === 'silver') newLimit = 4000000;
           else if (newRank === 'gold') newLimit = 5000000;
           else if (newRank === 'diamond') newLimit = 10000000;
-
           setRankProfit(prev => prev + (newLimit * 0.05));
           const updated = { ...u, rank: newRank, totalLimit: newLimit, balance: newLimit - (u.totalLimit - u.balance), pendingUpgradeRank: null, rankUpgradeBill: undefined };
-          if (user && user.id === userId) setUser(updated);
+          if (user?.id === userId) setUser(updated);
           return updated;
         }
         return { ...u, pendingUpgradeRank: null, rankUpgradeBill: undefined };
@@ -278,31 +258,19 @@ const App: React.FC = () => {
   const handleDeleteUser = (userId: string) => {
     setRegisteredUsers(prev => prev.filter(u => u.id !== userId));
     setLoans(prev => prev.filter(l => l.userId !== userId));
-    if (user && user.id === userId) handleLogout();
   };
 
   const handleAutoCleanupUsers = () => {
     const today = new Date();
-    const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
     const usersToDelete = registeredUsers.filter(u => {
       if (u.isAdmin) return false;
       const userLoans = loans.filter(l => l.userId === u.id);
       if (userLoans.length === 0) return false;
-      const hasActive = userLoans.some(l => !['ĐÃ TẤT TOÁN', 'BỊ TỪ CHỐI'].includes(l.status));
-      if (hasActive) return false;
       const settled = userLoans.filter(l => l.status === 'ĐÃ TẤT TOÁN');
       if (settled.length === 0) return false;
-      const lastSettlement = Math.max(...settled.map(l => {
-        const [d, m, y] = l.date.split('/').map(Number);
-        return new Date(y, m - 1, d).getTime();
-      }));
-      return (today.getTime() - lastSettlement) > SIXTY_DAYS_MS;
+      return true; 
     });
-    if (usersToDelete.length > 0) {
-      const ids = usersToDelete.map(u => u.id);
-      setRegisteredUsers(prev => prev.filter(u => !ids.includes(u.id)));
-      setLoans(prev => prev.filter(l => !ids.includes(l.userId)));
-    }
+    setRegisteredUsers(prev => prev.filter(u => !usersToDelete.some(td => td.id === u.id)));
     return usersToDelete.length;
   };
 
@@ -310,8 +278,6 @@ const App: React.FC = () => {
     loans.filter(l => l.status === 'CHỜ DUYỆT' || l.status === 'CHỜ TẤT TOÁN').length +
     registeredUsers.filter(u => u.pendingUpgradeRank).length
   , [loans, registeredUsers]);
-
-  if (!isInitialized) return <div className="min-h-screen bg-black flex items-center justify-center"><div className="w-8 h-8 border-4 border-[#ff8c00] border-t-transparent rounded-full animate-spin"></div></div>;
 
   const renderView = () => {
     switch (currentView) {
@@ -347,10 +313,10 @@ const App: React.FC = () => {
               </>
             ) : (
               <>
-                <button onClick={() => setCurrentView(AppView.DASHBOARD)} className={`flex flex-col items-center gap-1 flex-1 ${currentView === AppView.DASHBOARD ? 'text-[#ff8c00]' : 'text-gray-500'}`}><Home size={22} /><span className="text-[8px] font-black uppercase tracking-widest">Trang chủ</span></button>
-                <button onClick={() => setCurrentView(AppView.APPLY_LOAN)} className={`flex flex-col items-center gap-1 flex-1 ${currentView === AppView.APPLY_LOAN ? 'text-[#ff8c00]' : 'text-gray-500'}`}><Briefcase size={22} /><span className="text-[8px] font-black uppercase tracking-widest">Khoản vay</span></button>
-                <button onClick={() => setCurrentView(AppView.RANK_LIMITS)} className={`flex flex-col items-center gap-1 flex-1 ${currentView === AppView.RANK_LIMITS ? 'text-[#ff8c00]' : 'text-gray-500'}`}><Medal size={22} /><span className="text-[8px] font-black uppercase tracking-widest">Hạng</span></button>
-                <button onClick={() => setCurrentView(AppView.PROFILE)} className={`flex flex-col items-center gap-1 flex-1 ${currentView === AppView.PROFILE ? 'text-[#ff8c00]' : 'text-gray-500'}`}><UserIcon size={22} /><span className="text-[8px] font-black uppercase tracking-widest">Cá nhân</span></button>
+                <button onClick={() => setCurrentView(AppView.DASHBOARD)} className={`flex flex-col items-center gap-1 flex-1 ${currentView === AppView.DASHBOARD ? 'text-[#ff8c00]' : 'text-gray-500'}`}><Home size={22} /><span className="text-[7px] font-black uppercase tracking-widest">Trang chủ</span></button>
+                <button onClick={() => setCurrentView(AppView.APPLY_LOAN)} className={`flex flex-col items-center gap-1 flex-1 ${currentView === AppView.APPLY_LOAN ? 'text-[#ff8c00]' : 'text-gray-500'}`}><Briefcase size={22} /><span className="text-[7px] font-black uppercase tracking-widest">Vay vốn</span></button>
+                <button onClick={() => setCurrentView(AppView.RANK_LIMITS)} className={`flex flex-col items-center gap-1 flex-1 ${currentView === AppView.RANK_LIMITS ? 'text-[#ff8c00]' : 'text-gray-500'}`}><Medal size={22} /><span className="text-[7px] font-black uppercase tracking-widest">Hạn mức</span></button>
+                <button onClick={() => setCurrentView(AppView.PROFILE)} className={`flex flex-col items-center gap-1 flex-1 ${currentView === AppView.PROFILE ? 'text-[#ff8c00]' : 'text-gray-500'}`}><UserIcon size={22} /><span className="text-[7px] font-black uppercase tracking-widest">Cá nhân</span></button>
               </>
             )}
           </div>

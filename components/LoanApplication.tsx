@@ -551,25 +551,33 @@ const LoanApplication: React.FC<LoanApplicationProps> = ({ user, loans, systemBu
           </div>
         )}
 
-        <div className="w-full aspect-[1.6/1] bg-gradient-to-br from-[#2a2a2a] via-[#0a0a0a] to-[#2a2a2a] rounded-[2.5rem] p-8 relative overflow-hidden shadow-2xl border border-white/10 mb-8">
-          <div className="flex justify-between items-start mb-6">
-            <div className="flex items-center gap-3"><div className="w-10 h-10 bg-[#ff8c00] rounded-xl flex items-center justify-center font-black text-black text-[12px]">NDV</div><span className="text-[10px] font-black text-white uppercase">VIP Platinum</span></div><ShieldCheck size={28} className="text-[#ff8c00]/40" />
+        <div className="w-full min-h-[220px] bg-gradient-to-br from-[#1c1c1e] to-[#0a0a0a] rounded-[2.5rem] p-7 relative overflow-hidden shadow-2xl border border-white/10 mb-8 flex flex-col justify-between">
+          <div className="flex justify-between items-start mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#ff8c00] rounded-xl flex items-center justify-center font-black text-black text-[12px]">NDV</div>
+              <span className="text-[10px] font-black text-white uppercase tracking-wider">VIP PLATINUM</span>
+            </div>
+            <div className="p-1.5 bg-orange-500/10 rounded-full">
+              <ShieldCheck size={24} className="text-[#ff8c00]" />
+            </div>
           </div>
-          <div className="space-y-1 mb-6">
-            <span className="text-[7px] font-black text-gray-500 uppercase">Số tài khoản</span>
+          
+          <div className="space-y-1 mb-4">
+            <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">SỐ TÀI KHOẢN</span>
             <div className="flex items-center justify-between">
-              <p className="text-2xl font-mono font-black text-white tracking-[0.15em]">TIMOQNCGLIWQCLQ</p>
+              <p className="text-2xl font-mono font-black text-white tracking-[0.1em]">TIMOQNCGLIWQCLQ</p>
               <button onClick={() => copyToClipboard('TIMOQNCGLIWQCLQ')} className="p-2 bg-white/5 rounded-xl text-[#ff8c00] active:scale-90 transition-all"><Copy size={16} /></button>
             </div>
           </div>
-          <div className="flex justify-between items-end">
+          
+          <div className="flex justify-between items-end mt-2">
             <div className="space-y-1">
-              <p className="text-[7px] font-black text-gray-500 uppercase">Chủ tài khoản</p>
-              <p className="text-[13px] font-black text-white uppercase">DO TRUNG NGON</p>
+              <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest">CHỦ TÀI KHOẢN</p>
+              <p className="text-[13px] font-black text-white uppercase tracking-tight">DO TRUNG NGON</p>
             </div>
             <div className="text-right">
-              <p className="text-[7px] font-black text-gray-500 uppercase mb-0.5">Ngân hàng</p>
-              <p className="text-[11px] font-black text-[#ff8c00] uppercase leading-none tracking-tighter">TIMO (BẢN VIỆT)</p>
+              <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest mb-0.5">NGÂN HÀNG</p>
+              <p className="text-[11px] font-black text-[#ff8c00] uppercase tracking-tighter">TIMO (BẢN VIỆT)</p>
             </div>
           </div>
         </div>

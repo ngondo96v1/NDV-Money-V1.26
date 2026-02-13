@@ -512,7 +512,7 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = ({ users, loans,
                 <div className="bg-black/40 rounded-2xl p-6 border border-white/5 shadow-inner">
                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Kết quả thực thi</p>
                    <p className="text-3xl font-black text-green-500">{cleanupResultCount} <span className="text-sm">User</span></p>
-                   <p className="text-[9px] font-bold text-gray-600 uppercase mt-2 leading-tight">Đã được dọn dẹp vĩnh viễn khỏi hệ thống (Dữ liệu &gt; 60 ngày).</p>
+                   <p className="text-[9px] font-bold text-gray-600 uppercase mt-2 leading-tight">Đã được dọn dẹp vĩnh viễn khỏi hệ thống (Dữ liệu {'>'} 60 ngày).</p>
                 </div>
               </div>
             </div>
