@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { User, LoanRecord } from '../types';
 import { Wallet, X, Eye, FileText, CheckCircle2, ShieldCheck, Eraser, ChevronLeft, CreditCard, Copy, Camera, UploadCloud, CircleHelp, Info, Award, Landmark, FileCheck, AlertCircle, ArrowDownToLine, ShieldAlert, ChevronRight } from 'lucide-react';
@@ -776,7 +775,7 @@ const LoanApplication: React.FC<LoanApplicationProps> = ({ user, loans, systemBu
                   <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Đại diện (A)</p>
                   <div className="relative w-24 h-24">
                     <div className="absolute inset-0 flex items-center justify-center opacity-80 scale-110 -rotate-12">
-                      <div className="w-full h-full rounded-full border-[3px] border-red-600 border-dashed flex items-center justify-center flex-col text-red-600">
+                      <div className="w-full h-full rounded-full border-[3px] border-red-600 border-dashed flex flex-col items-center justify-center flex-col text-red-600">
                         <span className="text-[7px] font-black uppercase leading-none">NDV GROUP</span>
                         <ShieldCheck size={20} className="my-1" />
                         <span className="text-[5px] font-black uppercase leading-none">CERTIFIED</span>

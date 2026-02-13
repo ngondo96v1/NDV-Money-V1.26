@@ -1,4 +1,3 @@
-
 // Admin management component for users and loans
 import React, { useState } from 'react';
 import { User as UserType, LoanRecord } from '../types';

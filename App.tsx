@@ -19,10 +19,8 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-// Added explicit property declarations for state and props to resolve TypeScript inference errors
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   public state: ErrorBoundaryState;
-  // Added explicit props declaration to resolve "Property 'props' does not exist on type 'ErrorBoundary'" error
   public props: ErrorBoundaryProps;
 
   constructor(props: ErrorBoundaryProps) {
@@ -36,7 +34,6 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   render() {
-    // Correctly accessing this.state and this.props after explicit declaration
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8 text-center">
