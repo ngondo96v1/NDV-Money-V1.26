@@ -264,6 +264,10 @@ const App: React.FC = () => {
     }));
   };
 
+  const handleResetRankProfit = () => {
+    setRankProfit(0);
+  };
+
   const handleDeleteUser = (userId: string) => {
     setRegisteredUsers(prev => prev.filter(u => u.id !== userId));
     setLoans(prev => prev.filter(l => l.userId !== userId));
@@ -296,7 +300,7 @@ const App: React.FC = () => {
       case AppView.APPLY_LOAN: return <LoanApplication user={user} loans={loans} systemBudget={systemBudget} onApplyLoan={handleApplyLoan} onSettleLoan={handleSettleLoan} onBack={() => setCurrentView(AppView.DASHBOARD)} />;
       case AppView.RANK_LIMITS: return <RankLimits user={user} onBack={() => setCurrentView(AppView.DASHBOARD)} onUpgrade={handleUpgradeRank} />;
       case AppView.PROFILE: return <Profile user={user} onBack={() => setCurrentView(AppView.DASHBOARD)} onLogout={handleLogout} />;
-      case AppView.ADMIN_DASHBOARD: return <AdminDashboard user={user} loans={loans} registeredUsersCount={registeredUsers.length} systemBudget={systemBudget} rankProfit={rankProfit} onLogout={handleLogout} />;
+      case AppView.ADMIN_DASHBOARD: return <AdminDashboard user={user} loans={loans} registeredUsersCount={registeredUsers.length} systemBudget={systemBudget} rankProfit={rankProfit} onResetRankProfit={handleResetRankProfit} onLogout={handleLogout} />;
       case AppView.ADMIN_USERS: return <AdminUserManagement users={registeredUsers} loans={loans} onAction={handleAdminUserAction} onLoanAction={handleAdminLoanAction} onDeleteUser={handleDeleteUser} onAutoCleanup={handleAutoCleanupUsers} onBack={() => setCurrentView(AppView.ADMIN_DASHBOARD)} />;
       case AppView.ADMIN_BUDGET: return <AdminBudget currentBudget={systemBudget} onUpdate={(val) => setSystemBudget(val)} onBack={() => setCurrentView(AppView.ADMIN_DASHBOARD)} />;
       default: return <Dashboard user={user} loans={loans} systemBudget={systemBudget} onApply={() => setCurrentView(AppView.APPLY_LOAN)} onLogout={handleLogout} onViewAllLoans={() => setCurrentView(AppView.APPLY_LOAN)} />;

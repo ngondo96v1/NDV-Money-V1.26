@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { User, LoanRecord } from '../types';
 import { 
   Activity, 
@@ -12,7 +12,10 @@ import {
   Scale, 
   AlertCircle,
   Clock,
-  ShieldAlert
+  ShieldAlert,
+  RotateCcw,
+  X,
+  Check
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -21,10 +24,13 @@ interface AdminDashboardProps {
   registeredUsersCount: number;
   systemBudget: number;
   rankProfit: number;
+  onResetRankProfit: () => void;
   onLogout: () => void;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, loans, registeredUsersCount, systemBudget, rankProfit, onLogout }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, loans, registeredUsersCount, systemBudget, rankProfit, onResetRankProfit, onLogout }) => {
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  
   const settledLoans = loans.filter(l => l.status === 'ĐÃ TẤT TOÁN');
   const activeLoans = loans.filter(l => ['ĐANG NỢ', 'ĐANG GIẢI NGÂN', 'CHỜ TẤT TOÁN', 'ĐANG ĐỐI SOÁT'].includes(l.status));
   const pendingLoans = loans.filter(l => l.status === 'CHỜ DUYỆT' || l.status === 'CHỜ TẤT TOÁN');
@@ -50,6 +56,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, loans, registered
   const activeDebt = totalDisbursed - totalCollected;
 
   const isBudgetAlarm = systemBudget <= 2000000;
+
+  const handleConfirmReset = () => {
+    onResetRankProfit();
+    setShowResetConfirm(false);
+  };
 
   return (
     <div className="w-full bg-[#0a0a0a] px-5 pb-32 space-y-6 pt-6 animate-in fade-in duration-700">
@@ -86,9 +97,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, loans, registered
 
       {/* Thống kê lợi nhuận phí nâng hạng & Quá hạn Card */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-[#111111] border border-white/5 rounded-[2rem] p-6 space-y-4">
-          <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center text-purple-500">
-            <TrendingUp size={20} />
+        <div className="bg-[#111111] border border-white/5 rounded-[2rem] p-6 space-y-4 relative overflow-hidden">
+          <div className="flex justify-between items-center">
+            <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center text-purple-500">
+              <TrendingUp size={20} />
+            </div>
+            <button 
+              onClick={() => setShowResetConfirm(true)}
+              className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center text-gray-600 hover:text-[#ff8c00] active:scale-90 transition-all"
+              title="Đặt lại thống kê"
+            >
+              <RotateCcw size={14} />
+            </button>
           </div>
           <div className="space-y-1">
             <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Phí nâng hạng</p>
@@ -187,24 +207,40 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, loans, registered
         </div>
       </div>
 
-      <div className="pt-2 px-1 space-y-4">
-        <h3 className="text-[10px] font-black text-gray-600 uppercase tracking-[0.2em] flex items-center gap-2">
-          <ClipboardList size={14} /> Trạng thái
-        </h3>
-        <div className="grid grid-cols-4 gap-2">
-          {[
-            { label: 'Chờ', count: pendingLoans.length, color: 'text-orange-500', bg: 'bg-orange-500/10' },
-            { label: 'Nợ', count: activeLoans.length, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-            { label: 'Xong', count: settledLoans.length, color: 'text-green-500', bg: 'bg-green-500/10' },
-            { label: 'Trễ', count: overdueLoans.length, color: 'text-red-500', bg: 'bg-red-500/20' }
-          ].map((stat, i) => (
-            <div key={i} className={`${stat.bg} rounded-xl p-3 flex flex-col items-center gap-1`}>
-              <span className={`text-[12px] font-black ${stat.color}`}>{stat.count}</span>
-              <span className="text-[7px] font-black text-gray-600 uppercase">{stat.label}</span>
+      {/* Confirmation Modal for Rank Profit Reset */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="bg-[#111111] border border-orange-500/20 w-full max-w-sm rounded-[2.5rem] p-8 space-y-8 relative shadow-2xl overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-orange-500"></div>
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center text-orange-500">
+                 <RotateCcw size={32} />
+              </div>
+              <div className="space-y-3">
+                <h3 className="text-xl font-black text-white uppercase tracking-tighter">RESET THỐNG KÊ?</h3>
+                <p className="text-[10px] font-bold text-gray-400 uppercase leading-relaxed px-4">
+                  Bạn có chắc chắn muốn đặt lại thống kê <span className="text-orange-500">Phí Nâng Hạng</span> về 0? Hành động này không ảnh hưởng đến số dư người dùng.
+                </p>
+              </div>
             </div>
-          ))}
+
+            <div className="flex gap-3">
+               <button 
+                 onClick={() => setShowResetConfirm(false)}
+                 className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black text-gray-500 uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
+               >
+                 <X size={14} /> HỦY BỎ
+               </button>
+               <button 
+                 onClick={handleConfirmReset}
+                 className="flex-1 py-4 bg-orange-600 rounded-2xl text-[10px] font-black text-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-900/40"
+               >
+                 <Check size={14} /> ĐỒNG Ý
+               </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

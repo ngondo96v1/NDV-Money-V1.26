@@ -75,25 +75,25 @@ const Profile: React.FC<ProfileProps> = ({ user, onBack, onLogout }) => {
         </div>
       </div>
 
-      {/* Personal Info Card */}
-      <div className="bg-[#111111] border border-white/5 rounded-[2.5rem] p-8 space-y-8 mt-4">
-        <div className="flex items-center gap-5">
-          <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-gray-400">
-            <Phone size={20} />
+      {/* Personal Info Grid - Updated to 2 columns */}
+      <div className="grid grid-cols-2 gap-4 mt-4">
+        <div className="bg-[#111111] border border-white/5 rounded-[2rem] p-6 space-y-3">
+          <div className="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center text-gray-400">
+            <Phone size={18} />
           </div>
           <div className="space-y-0.5">
-            <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest">Số Zalo xác thực</p>
-            <p className="text-lg font-black text-white tracking-tight">{user?.phone || 'CHƯA CẬP NHẬT'}</p>
+            <p className="text-[8px] font-black text-gray-600 uppercase tracking-widest">Số Zalo</p>
+            <p className="text-sm font-black text-white tracking-tight truncate">{user?.phone || '...'}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-5">
-          <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-gray-400">
-            <Hash size={20} />
+        <div className="bg-[#111111] border border-white/5 rounded-[2rem] p-6 space-y-3">
+          <div className="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center text-gray-400">
+            <Hash size={18} />
           </div>
           <div className="space-y-0.5">
-            <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest">Số định danh CCCD</p>
-            <p className="text-lg font-black text-white tracking-tight">{user?.idNumber || 'CHƯA CẬP NHẬT'}</p>
+            <p className="text-[8px] font-black text-gray-600 uppercase tracking-widest">Định danh CCCD</p>
+            <p className="text-sm font-black text-white tracking-tight truncate">{user?.idNumber || '...'}</p>
           </div>
         </div>
       </div>
