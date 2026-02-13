@@ -1,0 +1,7 @@
+{
+  "name": "NDV Money - Personal Loan App",
+  "description": "A premium personal loan application featuring a sleek dark UI, secure authentication, and smart financial assistance powered by Gemini.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
