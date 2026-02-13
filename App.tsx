@@ -20,20 +20,20 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-// Fixed ErrorBoundary to explicitly extend React.Component and resolve the 'props' error
+// Fixed ErrorBoundary to explicitly extend React.Component and resolve the 'props' error by adding a constructor
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  public state: ErrorBoundaryState = { hasError: false };
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
   static getDerivedStateFromError() { 
     return { hasError: true }; 
   }
 
   render() {
-    const { hasError } = this.state;
-    // Fix: Accessing children from this.props which is correctly inherited from React.Component
-    const { children } = this.props;
-
-    if (hasError) {
+    // Accessing state and props directly to ensure type safety in various environments
+    if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8 text-center">
           <AlertTriangle size={48} className="text-[#ff8c00] mb-4" />
@@ -43,7 +43,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
         </div>
       );
     }
-    return children;
+    return this.props.children;
   }
 }
 
