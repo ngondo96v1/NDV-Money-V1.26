@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { AppView, User, UserRank, LoanRecord } from './types.ts';
 import Login from './components/Login.tsx';
@@ -177,11 +178,22 @@ const App: React.FC = () => {
     if (!user) return;
     const now = new Date();
     const dueDate = new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString('vi-VN');
+    
+    // Logic tạo Mã hợp đồng mới: NDV-ID
+    const userLoansCount = loans.filter(l => l.userId === user.id).length;
+    const contractId = userLoansCount === 0 ? `NDV-${user.id}` : `NDV-${user.id}-${userLoansCount + 1}`;
+
     const newLoan: LoanRecord = {
-      id: `NDV-${Math.floor(Math.random()*10000)}`, userId: user.id, userName: user.fullName, amount: amount,
-      date: dueDate, createdAt: now.toLocaleTimeString('vi-VN') + ' ' + now.toLocaleDateString('vi-VN'), 
-      status: 'CHỜ DUYỆT', signature: signature
+      id: contractId,
+      userId: user.id, 
+      userName: user.fullName, 
+      amount: amount,
+      date: dueDate, 
+      createdAt: now.toLocaleTimeString('vi-VN') + ' ' + now.toLocaleDateString('vi-VN'), 
+      status: 'CHỜ DUYỆT', 
+      signature: signature
     };
+    
     setLoans(prev => [newLoan, ...prev]);
     const updatedUser = { ...user, balance: user.balance - amount };
     setUser(updatedUser);
