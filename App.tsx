@@ -1,15 +1,15 @@
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { AppView, User, UserRank, LoanRecord } from './types';
-import Login from './components/Login';
-import Register from './components/Register';
-import Dashboard from './components/Dashboard';
-import LoanApplication from './components/LoanApplication';
-import RankLimits from './components/RankLimits';
-import Profile from './components/Profile';
-import AdminDashboard from './components/AdminDashboard';
-import AdminUserManagement from './components/AdminUserManagement';
-import AdminBudget from './components/AdminBudget';
+import React, { useState, useEffect, useMemo } from 'react';
+import { AppView, User, UserRank, LoanRecord } from './types.ts';
+import Login from './components/Login.tsx';
+import Register from './components/Register.tsx';
+import Dashboard from './components/Dashboard.tsx';
+import LoanApplication from './components/LoanApplication.tsx';
+import RankLimits from './components/RankLimits.tsx';
+import Profile from './components/Profile.tsx';
+import AdminDashboard from './components/AdminDashboard.tsx';
+import AdminUserManagement from './components/AdminUserManagement.tsx';
+import AdminBudget from './components/AdminBudget.tsx';
 import { User as UserIcon, Home, Briefcase, Medal, LayoutGrid, Users, Wallet, AlertTriangle } from 'lucide-react';
 
 interface ErrorBoundaryProps {
@@ -20,29 +20,33 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-// Fixed ErrorBoundary to explicitly extend React.Component and resolve the 'props' error by adding a constructor
+// Fix ErrorBoundary component to resolve property not found errors in TypeScript
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  // Fix: Explicitly declare state to resolve "Property 'state' does not exist on type 'ErrorBoundary'" error
+  public state: ErrorBoundaryState = { hasError: false };
+
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError() { 
+  // Fix: getDerivedStateFromError should accept an error parameter and return state
+  static getDerivedStateFromError(_error: any): ErrorBoundaryState { 
     return { hasError: true }; 
   }
 
   render() {
-    // Accessing state and props directly to ensure type safety in various environments
+    // Fix: access this.state.hasError which is now properly typed
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8 text-center">
           <AlertTriangle size={48} className="text-[#ff8c00] mb-4" />
-          <h2 className="text-xl font-black uppercase mb-2">Hệ thống đang bảo trì</h2>
-          <p className="text-xs text-gray-500 mb-6">Đã xảy ra lỗi không mong muốn. Vui lòng làm mới lại trang.</p>
-          <button onClick={() => window.location.reload()} className="px-8 py-3 bg-[#ff8c00] text-black font-black rounded-full text-xs uppercase">Tải lại trang</button>
+          <h2 className="text-xl font-black uppercase mb-2 text-white">Hệ thống đang bảo trì</h2>
+          <p className="text-xs text-gray-500 mb-6 uppercase">Đã xảy ra lỗi khởi tạo. Vui lòng tải lại trang.</p>
+          <button onClick={() => window.location.reload()} className="px-8 py-4 bg-[#ff8c00] text-black font-black rounded-full text-[10px] uppercase tracking-widest">Tải lại trang</button>
         </div>
       );
     }
+    // Fix: access this.props.children which is now properly typed via inheritance
     return this.props.children;
   }
 }
@@ -99,6 +103,7 @@ const App: React.FC = () => {
         if (savedLoans) setLoans(JSON.parse(savedLoans));
         if (savedBudget) setSystemBudget(Number(savedBudget));
         if (savedRankProfit) setRankProfit(Number(savedRankProfit));
+        
         if (savedUser && savedUser !== 'null' && savedUser !== '') {
           const parsedUser = JSON.parse(savedUser);
           if (parsedUser && parsedUser.id) {
@@ -107,7 +112,7 @@ const App: React.FC = () => {
           }
         }
       } catch (e) {
-        console.warn("Dữ liệu cục bộ không khả dụng, khởi tạo mới:", e);
+        console.warn("Dữ liệu LocalStorage trống, bắt đầu phiên mới.");
       } finally {
         setIsInitialized(true);
       }
@@ -126,7 +131,7 @@ const App: React.FC = () => {
         localStorage.setItem('vnv_budget', systemBudget.toString());
         localStorage.setItem('vnv_rank_profit', rankProfit.toString());
       } catch (e) {
-        console.error("Lỗi lưu trữ dữ liệu Vercel:", e);
+        console.error("Lỗi lưu trữ Vercel:", e);
       }
     };
 
@@ -335,7 +340,7 @@ const App: React.FC = () => {
               <>
                 <button onClick={() => setCurrentView(AppView.ADMIN_DASHBOARD)} className={`flex flex-col items-center gap-1 flex-1 ${currentView === AppView.ADMIN_DASHBOARD ? 'text-[#ff8c00]' : 'text-gray-500'}`}><LayoutGrid size={22} /><span className="text-[7px] font-black uppercase tracking-widest">Tổng quan</span></button>
                 <button onClick={() => setCurrentView(AppView.ADMIN_USERS)} className={`flex flex-col items-center gap-1 flex-1 relative ${currentView === AppView.ADMIN_USERS ? 'text-[#ff8c00]' : 'text-gray-500'}`}>
-                  <div className="relative"><Users size={22} />{adminNotificationCount > 0 && <div className="absolute -top-1 -right-1 i-4 h-4 bg-red-600 rounded-full flex items-center justify-center border-2 border-[#111111] animate-bounce"><span className="text-[7px] font-black text-white">{adminNotificationCount}</span></div>}</div>
+                  <div className="relative"><Users size={22} />{adminNotificationCount > 0 && <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 rounded-full flex items-center justify-center border-2 border-[#111111] animate-bounce"><span className="text-[7px] font-black text-white">{adminNotificationCount}</span></div>}</div>
                   <span className="text-[7px] font-black uppercase tracking-widest">Người dùng</span>
                 </button>
                 <button onClick={() => setCurrentView(AppView.ADMIN_BUDGET)} className={`flex flex-col items-center gap-1 flex-1 ${currentView === AppView.ADMIN_BUDGET ? 'text-[#ff8c00]' : 'text-gray-500'}`}><Wallet size={22} /><span className="text-[7px] font-black uppercase tracking-widest">Ngân sách</span></button>

@@ -10,8 +10,8 @@ export const getFinancialAdvice = async (amount: number, term: number, income?: 
     return "Tính năng tư vấn tài chính đang được đồng bộ. Vui lòng thử lại sau ít phút.";
   }
 
-  // Use named parameter for initialization
-  const ai = new GoogleGenAI({ apiKey });
+  // Use named parameter for initialization with direct access to process.env.API_KEY as per guidelines
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const attempt = async (remainingRetries: number): Promise<string> => {
     try {
@@ -25,7 +25,7 @@ export const getFinancialAdvice = async (amount: number, term: number, income?: 
         },
       });
 
-      // Directly access .text property from GenerateContentResponse
+      // Directly access .text property from GenerateContentResponse (not a method)
       return response.text || "Hiện tại chuyên gia chưa có lời khuyên cụ thể cho khoản vay này.";
     } catch (error) {
       if (remainingRetries > 0) {
