@@ -12,7 +12,6 @@ import AdminUserManagement from './components/AdminUserManagement';
 import AdminBudget from './components/AdminBudget';
 import { User as UserIcon, Home, Briefcase, Medal, LayoutGrid, Users, Wallet, AlertTriangle } from 'lucide-react';
 
-// Interfaces for ErrorBoundary props and state to fix TypeScript resolution errors
 interface ErrorBoundaryProps {
   children?: React.ReactNode;
 }
@@ -21,28 +20,23 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-// Error Boundary Component để chống crash app trên Production
-// Fix: Use explicit interfaces for Props and State to resolve 'Property does not exist' errors
+// Fixed ErrorBoundary to explicitly extend React.Component and resolve the 'props' error
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
+  public state: ErrorBoundaryState = { hasError: false };
 
-  // Fix: Correctly define static life-cycle method
   static getDerivedStateFromError() { 
     return { hasError: true }; 
   }
 
   render() {
-    // Fix: Using destructuring to safely access properties that TS was unable to resolve
     const { hasError } = this.state;
+    // Fix: Accessing children from this.props which is correctly inherited from React.Component
     const { children } = this.props;
 
     if (hasError) {
       return (
         <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8 text-center">
-          <AlertTriangle size={48} className="text-orange-500 mb-4" />
+          <AlertTriangle size={48} className="text-[#ff8c00] mb-4" />
           <h2 className="text-xl font-black uppercase mb-2">Hệ thống đang bảo trì</h2>
           <p className="text-xs text-gray-500 mb-6">Đã xảy ra lỗi không mong muốn. Vui lòng làm mới lại trang.</p>
           <button onClick={() => window.location.reload()} className="px-8 py-3 bg-[#ff8c00] text-black font-black rounded-full text-xs uppercase">Tải lại trang</button>
@@ -92,7 +86,6 @@ const App: React.FC = () => {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Khởi tạo dữ liệu từ LocalStorage một cách an toàn
   useEffect(() => {
     const initData = () => {
       try {
@@ -106,13 +99,15 @@ const App: React.FC = () => {
         if (savedLoans) setLoans(JSON.parse(savedLoans));
         if (savedBudget) setSystemBudget(Number(savedBudget));
         if (savedRankProfit) setRankProfit(Number(savedRankProfit));
-        if (savedUser) {
+        if (savedUser && savedUser !== 'null' && savedUser !== '') {
           const parsedUser = JSON.parse(savedUser);
-          setUser(parsedUser);
-          setCurrentView(parsedUser.isAdmin ? AppView.ADMIN_DASHBOARD : AppView.DASHBOARD);
+          if (parsedUser && parsedUser.id) {
+            setUser(parsedUser);
+            setCurrentView(parsedUser.isAdmin ? AppView.ADMIN_DASHBOARD : AppView.DASHBOARD);
+          }
         }
       } catch (e) {
-        console.warn("Lỗi khởi tạo dữ liệu:", e);
+        console.warn("Dữ liệu cục bộ không khả dụng, khởi tạo mới:", e);
       } finally {
         setIsInitialized(true);
       }
@@ -120,7 +115,6 @@ const App: React.FC = () => {
     initData();
   }, []);
 
-  // Cơ chế Persistence tối ưu: Chỉ lưu khi có thay đổi và sử dụng debounce
   useEffect(() => {
     if (!isInitialized) return;
     
@@ -132,7 +126,7 @@ const App: React.FC = () => {
         localStorage.setItem('vnv_budget', systemBudget.toString());
         localStorage.setItem('vnv_rank_profit', rankProfit.toString());
       } catch (e) {
-        console.error("Lỗi lưu trữ dữ liệu:", e);
+        console.error("Lỗi lưu trữ dữ liệu Vercel:", e);
       }
     };
 
@@ -161,7 +155,7 @@ const App: React.FC = () => {
       setUser(loggedInUser);
       setCurrentView(AppView.DASHBOARD);
     } else {
-      setLoginError("Số điện thoại hoặc mật khẩu không chính xác.");
+      setLoginError("Thông tin đăng nhập không chính xác. Vui lòng kiểm tra lại.");
     }
   };
 
@@ -329,17 +323,19 @@ const App: React.FC = () => {
     }
   };
 
+  const showNavbar = user && currentView !== AppView.LOGIN && currentView !== AppView.REGISTER;
+
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-black text-white flex flex-col max-w-md mx-auto relative overflow-hidden">
         <div className="flex-1 overflow-y-auto scroll-smooth">{renderView()}</div>
-        {user && currentView !== AppView.LOGIN && currentView !== AppView.REGISTER && (
-          <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#111111]/90 backdrop-blur-xl border-t border-white/5 px-4 py-4 flex justify-between items-center z-[50] safe-area-bottom">
-            {user.isAdmin ? (
+        {showNavbar && (
+          <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#111111]/95 backdrop-blur-xl border-t border-white/10 px-4 py-4 flex justify-between items-center z-[50] safe-area-bottom">
+            {user?.isAdmin ? (
               <>
                 <button onClick={() => setCurrentView(AppView.ADMIN_DASHBOARD)} className={`flex flex-col items-center gap-1 flex-1 ${currentView === AppView.ADMIN_DASHBOARD ? 'text-[#ff8c00]' : 'text-gray-500'}`}><LayoutGrid size={22} /><span className="text-[7px] font-black uppercase tracking-widest">Tổng quan</span></button>
                 <button onClick={() => setCurrentView(AppView.ADMIN_USERS)} className={`flex flex-col items-center gap-1 flex-1 relative ${currentView === AppView.ADMIN_USERS ? 'text-[#ff8c00]' : 'text-gray-500'}`}>
-                  <div className="relative"><Users size={22} />{adminNotificationCount > 0 && <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 rounded-full flex items-center justify-center border-2 border-[#111111] animate-bounce"><span className="text-[7px] font-black text-white">{adminNotificationCount}</span></div>}</div>
+                  <div className="relative"><Users size={22} />{adminNotificationCount > 0 && <div className="absolute -top-1 -right-1 i-4 h-4 bg-red-600 rounded-full flex items-center justify-center border-2 border-[#111111] animate-bounce"><span className="text-[7px] font-black text-white">{adminNotificationCount}</span></div>}</div>
                   <span className="text-[7px] font-black uppercase tracking-widest">Người dùng</span>
                 </button>
                 <button onClick={() => setCurrentView(AppView.ADMIN_BUDGET)} className={`flex flex-col items-center gap-1 flex-1 ${currentView === AppView.ADMIN_BUDGET ? 'text-[#ff8c00]' : 'text-gray-500'}`}><Wallet size={22} /><span className="text-[7px] font-black uppercase tracking-widest">Ngân sách</span></button>

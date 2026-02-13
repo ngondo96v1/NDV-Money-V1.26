@@ -1,32 +1,40 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-// Financial advisor service using Gemini API with Retry Logic for Vercel stability
+// Financial advisor service using Gemini API with standardized initialization
 export const getFinancialAdvice = async (amount: number, term: number, income?: number, retries = 2) => {
-  if (!process.env.API_KEY) return "Hệ thống đang bảo trì dịch vụ tư vấn tài chính.";
+  // Directly access the pre-configured environment variable
+  const apiKey = process.env.API_KEY;
+  
+  if (!apiKey) {
+    return "Tính năng tư vấn tài chính đang được đồng bộ. Vui lòng thử lại sau ít phút.";
+  }
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Use named parameter for initialization
+  const ai = new GoogleGenAI({ apiKey });
   
   const attempt = async (remainingRetries: number): Promise<string> => {
     try {
+      // Use gemini-3-pro-preview for complex reasoning task (financial analysis)
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: 'gemini-3-pro-preview',
         contents: `Tôi muốn vay ${amount.toLocaleString()} VNĐ trong vòng ${term} tháng. Thu nhập của tôi là ${income ? income.toLocaleString() : 'không xác định'} VNĐ. Hãy phân tích khả năng trả nợ và đưa ra lời khuyên tài chính cực kỳ ngắn gọn (dưới 50 từ) bằng tiếng Việt.`,
         config: {
-          systemInstruction: "Bạn là chuyên gia tài chính NDV Money. Trả lời chuyên nghiệp, thẳng thắn, tập trung vào rủi ro và giải pháp.",
-          temperature: 0.5,
+          systemInstruction: "Bạn là chuyên gia tài chính của hệ thống NDV Money. Trả lời chuyên nghiệp, súc tích, tập trung vào giải pháp thanh toán.",
+          temperature: 0.7,
         },
       });
 
-      return response.text || "Hiện tại chuyên gia không có lời khuyên nào cụ thể.";
+      // Directly access .text property from GenerateContentResponse
+      return response.text || "Hiện tại chuyên gia chưa có lời khuyên cụ thể cho khoản vay này.";
     } catch (error) {
       if (remainingRetries > 0) {
-        // Đợi 1 giây trước khi thử lại
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Exponential backoff for reliability
+        await new Promise(resolve => setTimeout(resolve, 1000 * (3 - remainingRetries)));
         return attempt(remainingRetries - 1);
       }
-      console.error("Gemini Failure:", error);
-      return "Dịch vụ tư vấn AI tạm thời không khả dụng. Vui lòng thử lại sau.";
+      console.error("Gemini API Error:", error);
+      return "Dịch vụ tư vấn AI đang bận xử lý dữ liệu. Vui lòng kiểm tra lại sau.";
     }
   };
 
