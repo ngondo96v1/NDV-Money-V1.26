@@ -177,11 +177,24 @@ const App: React.FC = () => {
   const handleApplyLoan = (amount: number, signature?: string) => {
     if (!user) return;
     const now = new Date();
-    const dueDate = new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString('vi-VN');
     
-    // Logic tạo Mã hợp đồng mới: NDV-ID
+    // Đồng bộ logic ngày đến hạn với Dashboard và LoanApplication
+    const nextMonth1st = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const diffTime = nextMonth1st.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    let finalDate;
+    if (diffDays < 10) {
+      finalDate = new Date(now.getFullYear(), now.getMonth() + 2, 1);
+    } else {
+      finalDate = nextMonth1st;
+    }
+    const dueDate = finalDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    
+    // Logic tạo Mã hợp đồng: NDV-UserID-Sequence (Ví dụ: NDV-1234-01)
     const userLoansCount = loans.filter(l => l.userId === user.id).length;
-    const contractId = userLoansCount === 0 ? `NDV-${user.id}` : `NDV-${user.id}-${userLoansCount + 1}`;
+    const sequence = (userLoansCount + 1).toString().padStart(2, '0');
+    const contractId = `NDV-${user.id}-${sequence}`;
 
     const newLoan: LoanRecord = {
       id: contractId,
@@ -214,21 +227,39 @@ const App: React.FC = () => {
     }));
   };
 
-  const handleAdminLoanAction = (loanId: string, action: 'APPROVE' | 'DISBURSE' | 'SETTLE' | 'REJECT') => {
+  const handleAdminLoanAction = (loanId: string, action: 'APPROVE' | 'DISBURSE' | 'SETTLE' | 'REJECT', reason?: string) => {
     const targetLoan = loans.find(l => l.id === loanId);
     if (!targetLoan) return;
-    if (action === 'DISBURSE') setSystemBudget(prev => prev - (targetLoan.amount * 0.85));
-    else if (action === 'SETTLE') setSystemBudget(prev => prev + (targetLoan.amount * 0.85));
+    if (action === 'DISBURSE') setSystemBudget(prev => prev - targetLoan.amount);
+    else if (action === 'SETTLE') setSystemBudget(prev => prev + targetLoan.amount);
 
     setLoans(prev => prev.map(loan => {
       if (loan.id === loanId) {
         let newStatus = loan.status;
-        switch(action) {
-          case 'APPROVE': newStatus = 'ĐÃ DUYỆT'; break;
-          case 'DISBURSE': newStatus = 'ĐANG NỢ'; break;
-          case 'SETTLE': newStatus = 'ĐÃ TẤT TOÁN'; break;
-          case 'REJECT': newStatus = 'BỊ TỪ CHỐI'; break;
+        let rejectionReason = reason || loan.rejectionReason;
+
+        if (action === 'REJECT') {
+          // Nếu đang chờ tất toán mà bị từ chối bill thì quay về ĐANG NỢ để nộp lại
+          if (loan.status === 'CHỜ TẤT TOÁN') {
+            newStatus = 'ĐANG NỢ';
+          } else {
+            newStatus = 'BỊ TỪ CHỐI';
+            // Hoàn lại hạn mức cho user nếu khoản vay bị từ chối (không phải từ chối bill tất toán)
+            const loanUser = registeredUsers.find(u => u.id === loan.userId);
+            if (loanUser) {
+              const updatedUser = { ...loanUser, balance: Math.min(loanUser.totalLimit, loanUser.balance + loan.amount) };
+              setRegisteredUsers(users => users.map(u => u.id === loan.userId ? updatedUser : u));
+              if (user?.id === loan.userId) setUser(updatedUser);
+            }
+          }
+        } else {
+          switch(action) {
+            case 'APPROVE': newStatus = 'ĐÃ DUYỆT'; break;
+            case 'DISBURSE': newStatus = 'ĐANG NỢ'; break;
+            case 'SETTLE': newStatus = 'ĐÃ TẤT TOÁN'; break;
+          }
         }
+
         if (action === 'SETTLE') {
           const loanUser = registeredUsers.find(u => u.id === loan.userId);
           if (loanUser) {
@@ -237,7 +268,7 @@ const App: React.FC = () => {
              if (user?.id === loan.userId) setUser(updatedUser);
           }
         }
-        return { ...loan, status: newStatus as any };
+        return { ...loan, status: newStatus as any, rejectionReason };
       }
       return loan;
     }));
@@ -274,7 +305,6 @@ const App: React.FC = () => {
   };
 
   const handleAutoCleanupUsers = () => {
-    const today = new Date();
     const usersToDelete = registeredUsers.filter(u => {
       if (u.isAdmin) return false;
       const userLoans = loans.filter(l => l.userId === u.id);

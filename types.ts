@@ -49,6 +49,7 @@ export interface LoanRecord {
   fine?: number;
   billImage?: string;
   signature?: string; // Lưu trữ DataURL của chữ ký
+  rejectionReason?: string;
 }
 
 export interface AuthState {

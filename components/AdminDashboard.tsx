@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { User, LoanRecord } from '../types';
 import { 
@@ -32,10 +31,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, loans, registered
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   
   const settledLoans = loans.filter(l => l.status === 'ĐÃ TẤT TOÁN');
-  const activeLoans = loans.filter(l => ['ĐANG NỢ', 'ĐANG GIẢI NGÂN', 'CHỜ TẤT TOÁN', 'ĐANG ĐỐI SOÁT'].includes(l.status));
   const pendingLoans = loans.filter(l => l.status === 'CHỜ DUYỆT' || l.status === 'CHỜ TẤT TOÁN');
   
-  // Kiểm tra quá hạn
   const today = new Date();
   const overdueLoans = loans.filter(l => {
     if (l.status !== 'ĐANG NỢ' && l.status !== 'CHỜ TẤT TOÁN') return false;
@@ -82,7 +79,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, loans, registered
         </button>
       </div>
 
-      {/* Cảnh báo ngân sách thấp */}
       {isBudgetAlarm && (
         <div className="bg-red-600/10 border border-red-600/30 rounded-[2rem] p-5 flex items-center gap-4 animate-pulse shadow-lg shadow-red-950/10">
           <div className="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center shrink-0 shadow-lg">
@@ -90,12 +86,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, loans, registered
           </div>
           <div>
             <p className="text-[10px] font-black text-red-600 uppercase tracking-widest leading-none mb-1.5">Cảnh báo: Ngân sách cạn kiệt</p>
-            <p className="text-[9px] font-bold text-gray-400 uppercase leading-tight">Nguồn vốn khả dụng đang ở mức báo động (≤ 2.000.000 đ). Hệ thống có thể ngừng giải ngân mới.</p>
+            <p className="text-[9px] font-bold text-gray-400 uppercase leading-tight">Nguồn vốn khả dụng đang ở mức báo động (≤ 2.000.000 đ).</p>
           </div>
         </div>
       )}
 
-      {/* Thống kê lợi nhuận phí nâng hạng & Quá hạn Card */}
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-[#111111] border border-white/5 rounded-[2rem] p-6 space-y-4 relative overflow-hidden">
           <div className="flex justify-between items-center">
@@ -201,13 +196,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, loans, registered
               <p className="text-xl font-black text-red-500">{activeDebt.toLocaleString()} đ</p>
             </div>
             <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
-               <div className="h-full bg-red-500/60 transition-all duration-1000" style={{ width: `${Math.min(100, (activeDebt / (systemBudget + activeDebt)) * 100)}%` }}></div>
+               <div className="h-full bg-red-500/60 transition-all duration-1000" style={{ width: `${Math.min(100, (activeDebt / (systemBudget + activeDebt || 1)) * 100)}%` }}></div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Confirmation Modal for Rank Profit Reset */}
       {showResetConfirm && (
         <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className="bg-[#111111] border border-orange-500/20 w-full max-w-sm rounded-[2.5rem] p-8 space-y-8 relative shadow-2xl overflow-hidden">

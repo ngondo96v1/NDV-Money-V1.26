@@ -30,7 +30,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, loans, systemBudget, onView
     return finalDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
+  const activeLoans = loans.filter(l => l.status === 'ĐANG ĐỐI SOÁT' || l.status === 'ĐANG NỢ' || l.status === 'ĐANG GIẢI NGÂN' || l.status === 'CHỜ DUYỆT');
+  const earliestLoan = activeLoans.length > 0 ? [...activeLoans].sort((a, b) => {
+    const [da, ma, ya] = a.date.split('/').map(Number);
+    const [db, mb, yb] = b.date.split('/').map(Number);
+    return new Date(ya, ma - 1, da).getTime() - new Date(yb, mb - 1, db).getTime();
+  })[0] : null;
+
   const nextDueDate = getNextPaymentDate();
+  const displayDueDate = earliestLoan ? earliestLoan.date : nextDueDate;
 
   const currentDebt = loans
     .filter(l => l.status === 'ĐANG ĐỐI SOÁT' || l.status === 'ĐANG NỢ' || l.status === 'ĐANG GIẢI NGÂN')
@@ -148,7 +156,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, loans, systemBudget, onView
             <div className="space-y-1">
               <p className="text-[9px] font-bold text-gray-500 uppercase">Tổng tiền đã vay</p>
               <p className="text-xl font-black text-white">
-                {loans.reduce((acc, curr) => acc + curr.amount, 0).toLocaleString()} đ
+                {loans
+                  .filter(l => l.status === 'ĐANG NỢ' || l.status === 'CHỜ TẤT TOÁN' || l.status === 'ĐÃ TẤT TOÁN' || l.status === 'ĐANG GIẢI NGÂN')
+                  .reduce((acc, curr) => acc + curr.amount, 0).toLocaleString()} đ
               </p>
             </div>
             <div className="space-y-1 text-right">
@@ -180,7 +190,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, loans, systemBudget, onView
           </div>
           <div className="space-y-1">
             <p className="text-[9px] font-bold text-gray-500 uppercase tracking-tighter">Kỳ hạn tiếp theo</p>
-            <p className="text-lg font-black text-white">{loans.length > 0 ? nextDueDate : '--/--/--'}</p>
+            <p className="text-lg font-black text-white">{loans.length > 0 ? displayDueDate : '--/--/--'}</p>
           </div>
         </div>
       </div>

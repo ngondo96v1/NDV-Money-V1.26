@@ -15,13 +15,14 @@ import {
 
 interface AdminLoanApprovalProps {
   loans: LoanRecord[];
-  onAction: (loanId: string, action: 'APPROVE' | 'DISBURSE' | 'SETTLE' | 'REJECT') => void;
+  onAction: (loanId: string, action: 'APPROVE' | 'DISBURSE' | 'SETTLE' | 'REJECT', reason?: string) => void;
   onBack: () => void;
 }
 
 const AdminLoanApproval: React.FC<AdminLoanApprovalProps> = ({ loans, onAction, onBack }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+  const [rejectingLoanId, setRejectingLoanId] = useState<string | null>(null);
 
   // Nhóm các khoản vay theo User
   const groupedLoans: Record<string, { name: string; loans: LoanRecord[] }> = {};
@@ -169,20 +170,44 @@ const AdminLoanApproval: React.FC<AdminLoanApprovalProps> = ({ loans, onAction, 
 
                           <div className="flex gap-2">
                             {loan.status === 'CHỜ DUYỆT' && (
-                              <>
-                                <button 
-                                  onClick={() => onAction(loan.id, 'APPROVE')}
-                                  className="flex-1 bg-[#ff8c00] text-black py-3 rounded-xl font-black text-[10px] uppercase active:scale-95 transition-all"
-                                >
-                                  Duyệt vay
-                                </button>
-                                <button 
-                                  onClick={() => onAction(loan.id, 'REJECT')}
-                                  className="flex-1 bg-white/5 border border-white/10 text-red-500 py-3 rounded-xl font-black text-[10px] uppercase active:scale-95 transition-all"
-                                >
-                                  Từ chối
-                                </button>
-                              </>
+                              <div className="flex flex-col gap-2 w-full">
+                                <div className="flex gap-2">
+                                  <button 
+                                    onClick={() => onAction(loan.id, 'APPROVE')}
+                                    className="flex-1 bg-[#ff8c00] text-black py-3 rounded-xl font-black text-[10px] uppercase active:scale-95 transition-all"
+                                  >
+                                    Duyệt vay
+                                  </button>
+                                  <button 
+                                    onClick={() => setRejectingLoanId(rejectingLoanId === loan.id ? null : loan.id)}
+                                    className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase active:scale-95 transition-all flex items-center justify-center gap-2 ${rejectingLoanId === loan.id ? 'bg-red-600 text-white' : 'bg-white/5 border border-white/10 text-red-500'}`}
+                                  >
+                                    <XCircle size={14} /> {rejectingLoanId === loan.id ? 'Hủy' : 'Từ chối'}
+                                  </button>
+                                </div>
+                                {rejectingLoanId === loan.id && (
+                                  <div className="grid grid-cols-2 gap-2 animate-in slide-in-from-top-2 duration-200">
+                                    {[
+                                      "Hồ sơ không đạt",
+                                      "Thông tin sai lệch",
+                                      "Nợ xấu hệ thống",
+                                      "Vượt quá hạn mức"
+                                    ].map((reason) => (
+                                      <button 
+                                        key={reason}
+                                        onClick={() => { 
+                                          alert(`Đã từ chối: ${reason}`); 
+                                          onAction(loan.id, 'REJECT', reason);
+                                          setRejectingLoanId(null);
+                                        }}
+                                        className="bg-red-500/10 text-red-500/70 py-2 rounded-lg font-bold text-[8px] uppercase border border-red-500/10 hover:bg-red-500/20 transition-all"
+                                      >
+                                        {reason}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             )}
                             {loan.status === 'ĐÃ DUYỆT' && (
                               <button 
@@ -193,20 +218,45 @@ const AdminLoanApproval: React.FC<AdminLoanApprovalProps> = ({ loans, onAction, 
                               </button>
                             )}
                             {loan.status === 'CHỜ TẤT TOÁN' && (
-                              <>
-                                <button 
-                                  onClick={() => onAction(loan.id, 'SETTLE')}
-                                  className="flex-1 bg-green-600 text-white py-3 rounded-xl font-black text-[10px] uppercase active:scale-95 transition-all flex items-center justify-center gap-2"
-                                >
-                                  <CheckCircle2 size={14} /> Xác nhận bill
-                                </button>
-                                <button 
-                                  onClick={() => onAction(loan.id, 'REJECT')}
-                                  className="flex-1 bg-white/5 border border-white/10 text-red-500 py-3 rounded-xl font-black text-[10px] uppercase active:scale-95 transition-all flex items-center justify-center gap-2"
-                                >
-                                  <XCircle size={14} /> Bill sai
-                                </button>
-                              </>
+                              <div className="flex flex-col gap-2 w-full">
+                                <div className="flex gap-2">
+                                  <button 
+                                    onClick={() => onAction(loan.id, 'SETTLE')}
+                                    className="flex-1 bg-green-600 text-white py-3 rounded-xl font-black text-[10px] uppercase active:scale-95 transition-all flex items-center justify-center gap-2"
+                                  >
+                                    <CheckCircle2 size={14} /> Xác nhận bill
+                                  </button>
+                                  <button 
+                                    onClick={() => setRejectingLoanId(rejectingLoanId === loan.id ? null : loan.id)}
+                                    className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase active:scale-95 transition-all flex items-center justify-center gap-2 ${rejectingLoanId === loan.id ? 'bg-red-600 text-white' : 'bg-white/5 border border-white/10 text-red-500'}`}
+                                  >
+                                    <XCircle size={14} /> {rejectingLoanId === loan.id ? 'Hủy' : 'Từ chối'}
+                                  </button>
+                                </div>
+                                
+                                {rejectingLoanId === loan.id && (
+                                  <div className="grid grid-cols-2 gap-2 animate-in slide-in-from-top-2 duration-200">
+                                    {[
+                                      "Bill không hợp lệ",
+                                      "Sai nội dung",
+                                      "Sai số tiền",
+                                      "Ảnh mờ/Lỗi"
+                                    ].map((reason) => (
+                                      <button 
+                                        key={reason}
+                                        onClick={() => { 
+                                          alert(`Đã từ chối: ${reason}`); 
+                                          onAction(loan.id, 'REJECT', reason);
+                                          setRejectingLoanId(null);
+                                        }}
+                                        className="bg-red-500/10 text-red-500/70 py-2 rounded-lg font-bold text-[8px] uppercase border border-red-500/10 hover:bg-red-500/20 transition-all"
+                                      >
+                                        {reason}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
                         </div>

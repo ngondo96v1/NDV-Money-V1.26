@@ -48,7 +48,7 @@ const ContractModal: React.FC<ContractModalProps> = ({ contract, user, onClose }
             </div>
             <div className="text-center space-y-2">
               <h2 className="text-2xl font-black text-black tracking-tighter uppercase leading-tight">Hợp đồng vay tiêu dùng</h2>
-              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.3em]">Số: {contract.id}/HĐTD-NDVM</p>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.3em]">Số hợp đồng: {contract.id}</p>
             </div>
           </div>
 

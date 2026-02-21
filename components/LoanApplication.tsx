@@ -184,6 +184,10 @@ const LoanApplication: React.FC<LoanApplicationProps> = ({ user, loans, systemBu
 
   const isSystemOutOfCapital = systemBudget < 1000000;
 
+  const userLoansCountForId = loans.filter(l => l.userId === user?.id).length;
+  const nextSequence = (userLoansCountForId + 1).toString().padStart(2, '0');
+  const nextContractId = user ? `NDV-${user.id}-${nextSequence}` : 'NDV-TEMP';
+
   const getCalculatedDueDate = () => {
     const now = new Date();
     const nextMonth1st = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -254,7 +258,11 @@ const LoanApplication: React.FC<LoanApplicationProps> = ({ user, loans, systemBu
   };
 
   const renderList = () => {
-    const isPending = loans.some(loan => loan.status === 'CHỜ DUYỆT' || loan.status === 'ĐANG GIẢI NGÂN');
+    // Disable nếu có bất kỳ khoản vay nào chưa hoàn tất (không phải ĐÃ TẤT TOÁN hoặc BỊ TỪ CHỐI)
+    const hasActiveLoan = loans.some(loan => 
+      loan.status !== 'ĐÃ TẤT TOÁN' && loan.status !== 'BỊ TỪ CHỐI'
+    );
+    
     const today = new Date();
     const hasOverdue = loans.some(l => {
       if (l.status !== 'ĐANG NỢ' && l.status !== 'CHỜ TẤT TOÁN') return false;
@@ -263,7 +271,7 @@ const LoanApplication: React.FC<LoanApplicationProps> = ({ user, loans, systemBu
       return dueDateObj < today;
     });
 
-    const isApplyDisabled = isPending || hasOverdue || isSystemOutOfCapital;
+    const isApplyDisabled = hasActiveLoan || hasOverdue || isSystemOutOfCapital;
     const displayedLoans = showAllLoans ? loans : loans.slice(0, 3);
 
     return (
@@ -282,7 +290,7 @@ const LoanApplication: React.FC<LoanApplicationProps> = ({ user, loans, systemBu
                 : 'bg-[#ff8c00] text-black active:scale-95 shadow-orange-950/20'
             }`}
           >
-            {hasOverdue ? 'NỢ XẤU - KHÓA' : (isPending ? 'ĐANG XỬ LÝ' : isSystemOutOfCapital ? 'BẢO TRÌ VỐN' : 'ĐĂNG KÝ MỚI')}
+            {hasOverdue ? 'NỢ XẤU - KHÓA' : (hasActiveLoan ? 'ĐANG CÓ KHOẢN VAY' : isSystemOutOfCapital ? 'BẢO TRÌ VỐN' : 'ĐĂNG KÝ MỚI')}
           </button>
         </div>
 
@@ -388,6 +396,15 @@ const LoanApplication: React.FC<LoanApplicationProps> = ({ user, loans, systemBu
                       )}
                     </div>
                   </div>
+
+                  {loan.rejectionReason && (loan.status === 'BỊ TỪ CHỐI' || loan.status === 'ĐANG NỢ') && (
+                    <div className="mt-3 bg-red-500/5 border border-red-500/10 rounded-xl p-3 flex items-center gap-2">
+                      <AlertCircle size={14} className="text-red-500 shrink-0" />
+                      <p className="text-[9px] font-bold text-red-500/80 uppercase leading-tight">
+                        Lý do từ chối: {loan.rejectionReason}
+                      </p>
+                    </div>
+                  )}
 
                   {isOverdue && (
                     <div className="w-full flex justify-end mt-4">
@@ -676,7 +693,7 @@ const LoanApplication: React.FC<LoanApplicationProps> = ({ user, loans, systemBu
             </div>
             <div className="text-center space-y-2">
               <h2 className="text-2xl font-black text-black tracking-tighter uppercase leading-tight">Hợp đồng vay tiêu dùng</h2>
-              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.3em]">Mã tạm tính: NDV-TEMP-{Date.now().toString().slice(-6)}</p>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.3em]">Số hợp đồng (Tạm tính): {nextContractId}</p>
             </div>
           </div>
 
