@@ -18,7 +18,7 @@ import {
   ChevronRight,
   AlertCircle
 } from 'lucide-react';
-import { compressImage } from '../App';
+import { compressImage } from '../utils';
 
 interface RankLimitsProps {
   user: User | null;

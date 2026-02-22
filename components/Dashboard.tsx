@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { User, UserRank, LoanRecord } from '../types';
-import { TrendingUp, CreditCard, History, FileText, CalendarDays, Star, Activity, AlertCircle, ChevronRight } from 'lucide-react';
+import { TrendingUp, CreditCard, History, FileText, CalendarDays, Star, Activity, AlertCircle, ChevronRight, Eye } from 'lucide-react';
 
 interface DashboardProps {
   user: User | null;
@@ -10,9 +10,11 @@ interface DashboardProps {
   onApply: () => void;
   onLogout: () => void;
   onViewAllLoans: () => void;
+  onSettleLoan?: (loan: LoanRecord) => void;
+  onViewContract?: (loan: LoanRecord) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ user, loans, systemBudget, onViewAllLoans }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, loans, systemBudget, onApply, onLogout, onViewAllLoans, onSettleLoan, onViewContract }) => {
   const [showAllHistory, setShowAllHistory] = useState(false);
 
   const getNextPaymentDate = () => {
@@ -82,18 +84,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, loans, systemBudget, onView
 
   return (
     <div className="w-full bg-black px-5 pb-24 space-y-5 pt-4">
-      {hasOverdue && (
-        <div className="bg-red-600 rounded-2xl p-4 flex items-center gap-4 animate-pulse shadow-lg shadow-red-900/20 mb-2">
-          <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shrink-0">
-            <AlertCircle size={20} className="text-white" />
-          </div>
-          <div className="flex-1">
-            <h4 className="text-[11px] font-black text-white uppercase tracking-widest">Cảnh báo quá hạn!</h4>
-            <p className="text-[9px] font-bold text-white/80 uppercase">Bạn có khoản vay đã quá hạn thanh toán. Vui lòng tất toán ngay để tránh nợ xấu.</p>
-          </div>
-        </div>
-      )}
-
       <div className={`w-full ${rankInfo.color} rounded-[2.5rem] p-8 ${rankInfo.textColor} relative overflow-hidden shadow-2xl`}>
         <div className="space-y-4 mb-8">
           <div className="flex justify-between items-start">
@@ -199,16 +189,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, loans, systemBudget, onView
         <div className="flex justify-between items-center px-1">
           <div className="flex items-center gap-2 text-gray-400">
              <History size={16} />
-             <h3 className="text-[10px] font-black uppercase tracking-widest">LỊCH SỬ GIAO DỊCH</h3>
+             <h3 className="text-[10px] font-black uppercase tracking-widest">GIAO DỊCH GẦN NHẤT</h3>
           </div>
-          {loans.length > 3 && (
-            <button 
-              onClick={() => setShowAllHistory(!showAllHistory)}
-              className="flex items-center gap-1 text-[9px] font-black text-[#ff8c00] uppercase tracking-widest hover:opacity-70 transition-opacity"
-            >
-              {showAllHistory ? 'Thu gọn' : 'Xem tất cả'} <ChevronRight size={10} className={`transform transition-transform ${showAllHistory ? '-rotate-90' : ''}`} />
-            </button>
-          )}
         </div>
 
         <div className="space-y-3 pb-8">
@@ -217,7 +199,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, loans, systemBudget, onView
               <p className="text-[10px] font-black text-gray-700 uppercase tracking-widest">Chưa có giao dịch nào</p>
             </div>
           ) : (
-            displayedLoans.map((item, idx) => {
+            loans.slice(0, 5).map((item, idx) => {
               const [d, m, y] = item.date.split('/').map(Number);
               const isOverdue = (item.status === 'ĐANG NỢ' || item.status === 'CHỜ TẤT TOÁN') && new Date(y, m - 1, d) < today;
               const statusColor = getStatusStyles(item.status, isOverdue);
@@ -239,19 +221,47 @@ const Dashboard: React.FC<DashboardProps> = ({ user, loans, systemBudget, onView
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-[8px] font-bold text-gray-700 mb-0.5">Hạn: {item.date}</p>
-                      <p className="text-[9px] font-bold text-gray-500">Tạo: {item.createdAt}</p>
+                    <div className="flex items-center gap-2">
+                       {onViewContract && (
+                         <button 
+                           onClick={() => onViewContract(item)}
+                           className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center text-gray-500 hover:text-white transition-all"
+                         >
+                           <Eye size={16} />
+                         </button>
+                       )}
+                       {(item.status === 'ĐANG NỢ' || item.status === 'ĐANG GIẢI NGÂN') && onSettleLoan && (
+                         <button 
+                           onClick={() => onSettleLoan(item)}
+                           className="bg-white text-black font-black px-3 py-1.5 rounded-lg text-[8px] uppercase tracking-widest active:scale-95 transition-all"
+                         >
+                           Tất toán
+                         </button>
+                       )}
                     </div>
                   </div>
-                  {isOverdue && (
-                    <div className="flex justify-end border-t border-white/5 pt-2">
-                       <div className="text-right">
-                          <p className="text-[7px] font-black text-gray-600 uppercase tracking-widest">Phí phạt trễ hạn</p>
-                          <p className="text-xs font-black text-red-500">{(item.fine || 0).toLocaleString()} VNĐ</p>
-                       </div>
+                  
+                  {item.rejectionReason && (item.status === 'BỊ TỪ CHỐI' || item.status === 'ĐANG NỢ') && (
+                    <div className="bg-red-500/5 border border-red-500/10 rounded-xl p-2 flex items-center justify-center gap-2">
+                      <AlertCircle size={12} className="text-red-500 shrink-0" />
+                      <p className="text-[8px] font-black text-red-500/80 uppercase tracking-widest text-center">
+                        Lý do: {item.rejectionReason}
+                      </p>
                     </div>
                   )}
+
+                  <div className="flex items-center justify-between border-t border-white/5 pt-2">
+                    <div className="flex gap-3">
+                      <p className="text-[8px] font-bold text-gray-700">Hạn: {item.date}</p>
+                      <p className="text-[8px] font-bold text-gray-700">Tạo: {item.createdAt}</p>
+                    </div>
+                    {isOverdue && (
+                      <div className="text-right">
+                        <p className="text-[7px] font-black text-gray-600 uppercase tracking-widest leading-none">Phí phạt trễ hạn</p>
+                        <p className="text-[10px] font-black text-red-500">{(item.fine || 0).toLocaleString()} đ</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })

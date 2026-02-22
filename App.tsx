@@ -1,16 +1,17 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { AppView, User, UserRank, LoanRecord } from './types.ts';
-import Login from './components/Login.tsx';
-import Register from './components/Register.tsx';
-import Dashboard from './components/Dashboard.tsx';
-import LoanApplication from './components/LoanApplication.tsx';
-import RankLimits from './components/RankLimits.tsx';
-import Profile from './components/Profile.tsx';
-import AdminDashboard from './components/AdminDashboard.tsx';
-import AdminUserManagement from './components/AdminUserManagement.tsx';
-import AdminBudget from './components/AdminBudget.tsx';
+import { AppView, User, UserRank, LoanRecord } from './types';
+import Login from './components/Login';
+import Register from './components/Register';
+import Dashboard from './components/Dashboard';
+import LoanApplication from './components/LoanApplication';
+import RankLimits from './components/RankLimits';
+import Profile from './components/Profile';
+import AdminDashboard from './components/AdminDashboard';
+import AdminUserManagement from './components/AdminUserManagement';
+import AdminBudget from './components/AdminBudget';
 import { User as UserIcon, Home, Briefcase, Medal, LayoutGrid, Users, Wallet, AlertTriangle } from 'lucide-react';
+import { compressImage } from './utils';
 
 interface ErrorBoundaryProps {
   children?: React.ReactNode;
@@ -49,37 +50,10 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 }
 
-export const compressImage = (base64Str: string, maxWidth = 600, maxHeight = 600): Promise<string> => {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.src = base64Str;
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      let width = img.width;
-      let height = img.height;
-      if (width > height) {
-        if (width > maxWidth) {
-          height *= maxWidth / width;
-          width = maxWidth;
-        }
-      } else {
-        if (height > maxHeight) {
-          width *= maxHeight / height;
-          height = maxHeight;
-        }
-      }
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      ctx?.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', 0.6));
-    };
-    img.onerror = () => resolve(base64Str);
-  });
-};
-
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.LOGIN);
+  const [settleLoanFromDash, setSettleLoanFromDash] = useState<LoanRecord | null>(null);
+  const [viewLoanFromDash, setViewLoanFromDash] = useState<LoanRecord | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loans, setLoans] = useState<LoanRecord[]>([]);
   const [registeredUsers, setRegisteredUsers] = useState<User[]>([]);
@@ -98,7 +72,9 @@ const App: React.FC = () => {
         const savedRankProfit = localStorage.getItem('vnv_rank_profit');
         
         if (savedAllUsers) setRegisteredUsers(JSON.parse(savedAllUsers));
-        if (savedLoans) setLoans(JSON.parse(savedLoans));
+        if (savedLoans) {
+          setLoans(JSON.parse(savedLoans));
+        }
         if (savedBudget) setSystemBudget(Number(savedBudget));
         if (savedRankProfit) setRankProfit(Number(savedRankProfit));
         
@@ -122,7 +98,27 @@ const App: React.FC = () => {
     if (!isInitialized) return;
     const persist = () => {
       localStorage.setItem('vnv_user', user ? JSON.stringify(user) : '');
-      localStorage.setItem('vnv_loans', JSON.stringify(loans));
+      
+      // Tiết kiệm không gian: Mỗi user chỉ giữ tối đa 5 giao dịch, ưu tiên các giao dịch chưa tất toán
+      const userGroups: Record<string, LoanRecord[]> = {};
+      loans.forEach(loan => {
+        if (!userGroups[loan.userId]) userGroups[loan.userId] = [];
+        userGroups[loan.userId].push(loan);
+      });
+
+      const prunedLoans: LoanRecord[] = [];
+      Object.values(userGroups).forEach(userLoans => {
+        const active = userLoans.filter(l => !['ĐÃ TẤT TOÁN', 'BỊ TỪ CHỐI'].includes(l.status));
+        const finished = userLoans.filter(l => ['ĐÃ TẤT TOÁN', 'BỊ TỪ CHỐI'].includes(l.status));
+        
+        const kept = [...active.slice(0, 5)];
+        if (kept.length < 5) {
+          kept.push(...finished.slice(0, 5 - kept.length));
+        }
+        prunedLoans.push(...kept);
+      });
+      
+      localStorage.setItem('vnv_loans', JSON.stringify(prunedLoans));
       localStorage.setItem('vnv_registered_users', JSON.stringify(registeredUsers));
       localStorage.setItem('vnv_budget', systemBudget.toString());
       localStorage.setItem('vnv_rank_profit', rankProfit.toString());
@@ -207,7 +203,32 @@ const App: React.FC = () => {
       signature: signature
     };
     
-    setLoans(prev => [newLoan, ...prev]);
+    setLoans(prev => {
+      const allLoans = [newLoan, ...prev];
+      
+      // Nhóm theo userId
+      const userGroups: Record<string, LoanRecord[]> = {};
+      allLoans.forEach(loan => {
+        if (!userGroups[loan.userId]) userGroups[loan.userId] = [];
+        userGroups[loan.userId].push(loan);
+      });
+
+      // Pruning: Mỗi user chỉ giữ tối đa 5 giao dịch, ưu tiên các giao dịch chưa tất toán
+      const pruned: LoanRecord[] = [];
+      Object.values(userGroups).forEach(userLoans => {
+        const active = userLoans.filter(l => !['ĐÃ TẤT TOÁN', 'BỊ TỪ CHỐI'].includes(l.status));
+        const finished = userLoans.filter(l => ['ĐÃ TẤT TOÁN', 'BỊ TỪ CHỐI'].includes(l.status));
+        
+        // Lấy tất cả active (tối đa 5), sau đó bù bằng finished cho đủ 5
+        const kept = [...active.slice(0, 5)];
+        if (kept.length < 5) {
+          kept.push(...finished.slice(0, 5 - kept.length));
+        }
+        pruned.push(...kept);
+      });
+
+      return pruned;
+    });
     const updatedUser = { ...user, balance: user.balance - amount };
     setUser(updatedUser);
     setRegisteredUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
@@ -275,20 +296,39 @@ const App: React.FC = () => {
   };
 
   const handleAdminUserAction = (userId: string, action: 'APPROVE_RANK' | 'REJECT_RANK') => {
+    if (action === 'APPROVE_RANK') {
+      const targetUser = registeredUsers.find(u => u.id === userId);
+      if (targetUser && targetUser.pendingUpgradeRank) {
+        const newRank = targetUser.pendingUpgradeRank;
+        let newLimit = targetUser.totalLimit;
+        
+        if (newRank === 'bronze') newLimit = 3000000;
+        else if (newRank === 'silver') newLimit = 4000000;
+        else if (newRank === 'gold') newLimit = 5000000;
+        else if (newRank === 'diamond') newLimit = 10000000;
+        
+        // Cộng phí nâng hạng (5%) vào thống kê - Thực hiện ngoài updater để tránh bị lặp lại
+        const upgradeFee = newLimit * 0.05;
+        setRankProfit(prev => prev + upgradeFee);
+        
+        const updatedUser = { 
+          ...targetUser, 
+          rank: newRank, 
+          totalLimit: newLimit, 
+          balance: newLimit - (targetUser.totalLimit - targetUser.balance), 
+          pendingUpgradeRank: null, 
+          rankUpgradeBill: undefined 
+        };
+        
+        setRegisteredUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+        if (user?.id === userId) setUser(updatedUser);
+        return;
+      }
+    }
+
+    // Trường hợp Từ chối hoặc không tìm thấy user
     setRegisteredUsers(prev => prev.map(u => {
       if (u.id === userId) {
-        if (action === 'APPROVE_RANK') {
-          const newRank = u.pendingUpgradeRank || u.rank;
-          let newLimit = u.totalLimit;
-          if (newRank === 'bronze') newLimit = 3000000;
-          else if (newRank === 'silver') newLimit = 4000000;
-          else if (newRank === 'gold') newLimit = 5000000;
-          else if (newRank === 'diamond') newLimit = 10000000;
-          setRankProfit(prev => prev + (newLimit * 0.05));
-          const updated = { ...u, rank: newRank, totalLimit: newLimit, balance: newLimit - (u.totalLimit - u.balance), pendingUpgradeRank: null, rankUpgradeBill: undefined };
-          if (user?.id === userId) setUser(updated);
-          return updated;
-        }
         return { ...u, pendingUpgradeRank: null, rankUpgradeBill: undefined };
       }
       return u;
@@ -326,8 +366,42 @@ const App: React.FC = () => {
     switch (currentView) {
       case AppView.LOGIN: return <Login onLogin={handleLogin} onNavigateRegister={() => setCurrentView(AppView.REGISTER)} error={loginError} />;
       case AppView.REGISTER: return <Register onBack={() => setCurrentView(AppView.LOGIN)} onRegister={handleRegister} />;
-      case AppView.DASHBOARD: return <Dashboard user={user} loans={loans} systemBudget={systemBudget} onApply={() => setCurrentView(AppView.APPLY_LOAN)} onLogout={handleLogout} onViewAllLoans={() => setCurrentView(AppView.APPLY_LOAN)} />;
-      case AppView.APPLY_LOAN: return <LoanApplication user={user} loans={loans} systemBudget={systemBudget} onApplyLoan={handleApplyLoan} onSettleLoan={handleSettleLoan} onBack={() => setCurrentView(AppView.DASHBOARD)} />;
+      case AppView.DASHBOARD: 
+        return (
+          <Dashboard 
+            user={user} 
+            loans={loans.filter(l => l.userId === user?.id)} 
+            systemBudget={systemBudget} 
+            onApply={() => setCurrentView(AppView.APPLY_LOAN)} 
+            onLogout={handleLogout} 
+            onViewAllLoans={() => setCurrentView(AppView.APPLY_LOAN)}
+            onSettleLoan={(loan) => {
+              setSettleLoanFromDash(loan);
+              setCurrentView(AppView.APPLY_LOAN);
+            }}
+            onViewContract={(loan) => {
+              setViewLoanFromDash(loan);
+              setCurrentView(AppView.APPLY_LOAN);
+            }}
+          />
+        );
+      case AppView.APPLY_LOAN: 
+        return (
+          <LoanApplication 
+            user={user} 
+            loans={loans.filter(l => l.userId === user?.id)} 
+            systemBudget={systemBudget} 
+            onApplyLoan={handleApplyLoan} 
+            onSettleLoan={handleSettleLoan} 
+            onBack={() => {
+              setSettleLoanFromDash(null);
+              setViewLoanFromDash(null);
+              setCurrentView(AppView.DASHBOARD);
+            }}
+            initialLoanToSettle={settleLoanFromDash}
+            initialLoanToView={viewLoanFromDash}
+          />
+        );
       case AppView.RANK_LIMITS: return <RankLimits user={user} onBack={() => setCurrentView(AppView.DASHBOARD)} onUpgrade={handleUpgradeRank} />;
       case AppView.PROFILE: return <Profile user={user} onBack={() => setCurrentView(AppView.DASHBOARD)} onLogout={handleLogout} />;
       case AppView.ADMIN_DASHBOARD: return <AdminDashboard user={user} loans={loans} registeredUsersCount={registeredUsers.length} systemBudget={systemBudget} rankProfit={rankProfit} onResetRankProfit={handleResetRankProfit} onLogout={handleLogout} />;
@@ -338,6 +412,14 @@ const App: React.FC = () => {
   };
 
   const showNavbar = user && currentView !== AppView.LOGIN && currentView !== AppView.REGISTER;
+
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-[#ff8c00] border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <ErrorBoundary>
@@ -356,10 +438,50 @@ const App: React.FC = () => {
               </>
             ) : (
               <>
-                <button onClick={() => setCurrentView(AppView.DASHBOARD)} className={`flex flex-col items-center gap-1 flex-1 ${currentView === AppView.DASHBOARD ? 'text-[#ff8c00]' : 'text-gray-500'}`}><Home size={22} /><span className="text-[7px] font-black uppercase tracking-widest">Trang chủ</span></button>
-                <button onClick={() => setCurrentView(AppView.APPLY_LOAN)} className={`flex flex-col items-center gap-1 flex-1 ${currentView === AppView.APPLY_LOAN ? 'text-[#ff8c00]' : 'text-gray-500'}`}><Briefcase size={22} /><span className="text-[7px] font-black uppercase tracking-widest">Vay vốn</span></button>
-                <button onClick={() => setCurrentView(AppView.RANK_LIMITS)} className={`flex flex-col items-center gap-1 flex-1 ${currentView === AppView.RANK_LIMITS ? 'text-[#ff8c00]' : 'text-gray-500'}`}><Medal size={22} /><span className="text-[7px] font-black uppercase tracking-widest">Hạn mức</span></button>
-                <button onClick={() => setCurrentView(AppView.PROFILE)} className={`flex flex-col items-center gap-1 flex-1 ${currentView === AppView.PROFILE ? 'text-[#ff8c00]' : 'text-gray-500'}`}><UserIcon size={22} /><span className="text-[7px] font-black uppercase tracking-widest">Cá nhân</span></button>
+                <button 
+                  onClick={() => {
+                    setSettleLoanFromDash(null);
+                    setViewLoanFromDash(null);
+                    setCurrentView(AppView.DASHBOARD);
+                  }} 
+                  className={`flex flex-col items-center gap-1 flex-1 ${currentView === AppView.DASHBOARD ? 'text-[#ff8c00]' : 'text-gray-500'}`}
+                >
+                  <Home size={22} />
+                  <span className="text-[7px] font-black uppercase tracking-widest">Trang chủ</span>
+                </button>
+                <button 
+                  onClick={() => {
+                    setSettleLoanFromDash(null);
+                    setViewLoanFromDash(null);
+                    setCurrentView(AppView.APPLY_LOAN);
+                  }} 
+                  className={`flex flex-col items-center gap-1 flex-1 ${currentView === AppView.APPLY_LOAN ? 'text-[#ff8c00]' : 'text-gray-500'}`}
+                >
+                  <Briefcase size={22} />
+                  <span className="text-[7px] font-black uppercase tracking-widest">Vay vốn</span>
+                </button>
+                <button 
+                  onClick={() => {
+                    setSettleLoanFromDash(null);
+                    setViewLoanFromDash(null);
+                    setCurrentView(AppView.RANK_LIMITS);
+                  }} 
+                  className={`flex flex-col items-center gap-1 flex-1 ${currentView === AppView.RANK_LIMITS ? 'text-[#ff8c00]' : 'text-gray-500'}`}
+                >
+                  <Medal size={22} />
+                  <span className="text-[7px] font-black uppercase tracking-widest">Hạn mức</span>
+                </button>
+                <button 
+                  onClick={() => {
+                    setSettleLoanFromDash(null);
+                    setViewLoanFromDash(null);
+                    setCurrentView(AppView.PROFILE);
+                  }} 
+                  className={`flex flex-col items-center gap-1 flex-1 ${currentView === AppView.PROFILE ? 'text-[#ff8c00]' : 'text-gray-500'}`}
+                >
+                  <UserIcon size={22} />
+                  <span className="text-[7px] font-black uppercase tracking-widest">Cá nhân</span>
+                </button>
               </>
             )}
           </div>

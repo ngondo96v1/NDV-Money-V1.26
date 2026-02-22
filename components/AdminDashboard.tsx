@@ -45,7 +45,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, loans, registered
     .filter(l => ['ĐANG NỢ', 'ĐANG GIẢI NGÂN', 'CHỜ TẤT TOÁN', 'ĐÃ TẤT TOÁN'].includes(l.status))
     .reduce((acc, curr) => acc + (curr.amount * 0.15), 0);
     
-  const totalFines = loans.reduce((acc, curr) => acc + (curr.fine || 0), 0);
+  const totalFines = loans
+    .filter(l => ['ĐANG NỢ', 'ĐANG GIẢI NGÂN', 'CHỜ TẤT TOÁN', 'ĐÃ TẤT TOÁN'].includes(l.status))
+    .reduce((acc, curr) => acc + (curr.fine || 0), 0);
+    
   const totalProfit = profitFromFees + totalFines;
 
   const totalDisbursed = loans.filter(l => l.status !== 'BỊ TỪ CHỐI' && l.status !== 'CHỜ DUYỆT').reduce((acc, curr) => acc + curr.amount, 0);
@@ -80,13 +83,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, loans, registered
       </div>
 
       {isBudgetAlarm && (
-        <div className="bg-red-600/10 border border-red-600/30 rounded-[2rem] p-5 flex items-center gap-4 animate-pulse shadow-lg shadow-red-950/10">
+        <div className="bg-red-600/10 border border-red-600/30 rounded-[2rem] p-5 flex flex-col items-center text-center gap-3 animate-pulse shadow-lg shadow-red-950/10">
           <div className="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center shrink-0 shadow-lg">
             <AlertCircle size={20} className="text-white" />
           </div>
           <div>
-            <p className="text-[10px] font-black text-red-600 uppercase tracking-widest leading-none mb-1.5">Cảnh báo: Ngân sách cạn kiệt</p>
-            <p className="text-[9px] font-bold text-gray-400 uppercase leading-tight">Nguồn vốn khả dụng đang ở mức báo động (≤ 2.000.000 đ).</p>
+            <p className="text-[10px] font-black text-red-600 uppercase tracking-widest leading-none mb-1.5">Ngân sách cạn kiệt</p>
+            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Nguồn vốn khả dụng đang ở mức báo động (≤ 2.000.000 đ).</p>
           </div>
         </div>
       )}

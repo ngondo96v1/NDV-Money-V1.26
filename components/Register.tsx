@@ -16,7 +16,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { User as UserType } from '../types';
-import { compressImage } from '../App';
+import { compressImage } from '../utils';
 
 interface RegisterProps {
   onBack: () => void;

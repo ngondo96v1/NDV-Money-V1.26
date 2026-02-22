@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { User, LoanRecord } from '../types';
 import { Wallet, X, Eye, FileText, CheckCircle2, ShieldCheck, Eraser, ChevronLeft, CreditCard, Copy, Camera, UploadCloud, CircleHelp, Info, Award, Landmark, FileCheck, AlertCircle, ArrowDownToLine, ShieldAlert, ChevronRight } from 'lucide-react';
 import ContractModal from './ContractModal';
-import { compressImage } from '../App';
+import { compressImage } from '../utils';
 
 interface LoanApplicationProps {
   user: User | null;
@@ -11,6 +11,8 @@ interface LoanApplicationProps {
   onApplyLoan: (amount: number, signature?: string) => void;
   onSettleLoan: (loanId: string, bill: string) => void;
   onBack: () => void;
+  initialLoanToSettle?: LoanRecord | null;
+  initialLoanToView?: LoanRecord | null;
 }
 
 enum LoanStep {
@@ -166,13 +168,27 @@ const SignaturePad: React.FC<{ onSign: (signature: string | null) => void }> = (
   );
 };
 
-const LoanApplication: React.FC<LoanApplicationProps> = ({ user, loans, systemBudget, onApplyLoan, onSettleLoan, onBack }) => {
-  const [step, setStep] = useState<LoanStep>(LoanStep.LIST);
+const LoanApplication: React.FC<LoanApplicationProps> = ({ user, loans, systemBudget, onApplyLoan, onSettleLoan, onBack, initialLoanToSettle, initialLoanToView }) => {
+  const [step, setStep] = useState<LoanStep>(initialLoanToSettle ? LoanStep.SETTLE_DETAIL : LoanStep.LIST);
   const [selectedAmount, setSelectedAmount] = useState<number>(1000000);
   const [signatureData, setSignatureData] = useState<string | null>(null);
-  const [selectedContract, setSelectedContract] = useState<LoanRecord | null>(null);
-  const [settleLoan, setSettleLoan] = useState<LoanRecord | null>(null);
+  const [selectedContract, setSelectedContract] = useState<LoanRecord | null>(initialLoanToView || null);
+  const [settleLoan, setSettleLoan] = useState<LoanRecord | null>(initialLoanToSettle || null);
   const [billImage, setBillImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialLoanToSettle) {
+      setSettleLoan(initialLoanToSettle);
+      setStep(LoanStep.SETTLE_DETAIL);
+    } else if (initialLoanToView) {
+      setSelectedContract(initialLoanToView);
+      setStep(LoanStep.LIST);
+    } else {
+      setStep(LoanStep.LIST);
+      setSettleLoan(null);
+      setSelectedContract(null);
+    }
+  }, [initialLoanToSettle, initialLoanToView]);
   const [isUploading, setIsUploading] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showAllLoans, setShowAllLoans] = useState(false);
@@ -258,12 +274,22 @@ const LoanApplication: React.FC<LoanApplicationProps> = ({ user, loans, systemBu
   };
 
   const renderList = () => {
-    // Disable nếu có bất kỳ khoản vay nào chưa hoàn tất (không phải ĐÃ TẤT TOÁN hoặc BỊ TỪ CHỐI)
-    const hasActiveLoan = loans.some(loan => 
-      loan.status !== 'ĐÃ TẤT TOÁN' && loan.status !== 'BỊ TỪ CHỐI'
-    );
+    // Logic giới hạn 5 khoản vay ĐANG NỢ:
+    const activeLoans = loans.filter(l => !['ĐÃ TẤT TOÁN', 'BỊ TỪ CHỐI'].includes(l.status));
+    const isLimitReached = activeLoans.length >= 5;
     
+    // Hợp đồng mới nhất (để xét quy tắc N+1)
+    const lastLoan = loans.length > 0 ? loans[0] : null;
+    
+    // Khoản vay trước đó phải là 'ĐANG NỢ' hoặc 'ĐÃ TẤT TOÁN' hoặc 'CHỜ TẤT TOÁN'
+    const isPreviousLoanPending = lastLoan && !['ĐANG NỢ', 'ĐÃ TẤT TOÁN', 'CHỜ TẤT TOÁN'].includes(lastLoan.status);
+
     const today = new Date();
+    const calculatedDueDate = getCalculatedDueDate();
+    
+    // Kiểm tra chu kỳ: Nếu có khoản vay ở chu kỳ cũ (khác ngày hạn dự kiến mới) thì phải tất toán hết mới được vay chu kỳ mới
+    const hasActiveOldCycle = activeLoans.some(l => l.date !== calculatedDueDate);
+
     const hasOverdue = loans.some(l => {
       if (l.status !== 'ĐANG NỢ' && l.status !== 'CHỜ TẤT TOÁN') return false;
       const [d, m, y] = l.date.split('/').map(Number);
@@ -271,7 +297,7 @@ const LoanApplication: React.FC<LoanApplicationProps> = ({ user, loans, systemBu
       return dueDateObj < today;
     });
 
-    const isApplyDisabled = hasActiveLoan || hasOverdue || isSystemOutOfCapital;
+    const isApplyDisabled = hasOverdue || isSystemOutOfCapital || isPreviousLoanPending || isLimitReached || hasActiveOldCycle || (user?.balance || 0) <= 0;
     const displayedLoans = showAllLoans ? loans : loans.slice(0, 3);
 
     return (
@@ -290,133 +316,64 @@ const LoanApplication: React.FC<LoanApplicationProps> = ({ user, loans, systemBu
                 : 'bg-[#ff8c00] text-black active:scale-95 shadow-orange-950/20'
             }`}
           >
-            {hasOverdue ? 'NỢ XẤU - KHÓA' : (hasActiveLoan ? 'ĐANG CÓ KHOẢN VAY' : isSystemOutOfCapital ? 'BẢO TRÌ VỐN' : 'ĐĂNG KÝ MỚI')}
+            {hasOverdue 
+              ? 'NỢ XẤU - KHÓA' 
+              : hasActiveOldCycle
+                ? 'PHẢI TẤT TOÁN CHU KỲ CŨ'
+                : isLimitReached 
+                  ? 'TỐI ĐA 5 KHOẢN NỢ'
+                  : isPreviousLoanPending 
+                    ? 'CHỜ DUYỆT KHOẢN TRƯỚC' 
+                    : isSystemOutOfCapital 
+                      ? 'BẢO TRÌ VỐN' 
+                      : 'ĐĂNG KÝ MỚI'}
           </button>
         </div>
 
-        {hasOverdue && (
-          <div className="bg-red-600/10 border border-red-600/30 rounded-[2rem] p-5 flex items-center gap-4 animate-pulse shadow-lg shadow-red-950/10">
-            <div className="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center shrink-0 shadow-lg">
-              <ShieldAlert size={20} className="text-white" />
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-red-600 uppercase tracking-widest leading-none mb-1">Hệ thống đã bị khóa</p>
-              <p className="text-[9px] font-bold text-gray-400 uppercase leading-tight">Bạn không thể đăng ký vay mới do có khoản nợ quá hạn chưa thanh toán.</p>
-            </div>
-          </div>
-        )}
-
-        {isSystemOutOfCapital && !hasOverdue && (
-          <div className="bg-orange-500/10 border border-orange-500/30 rounded-[2rem] p-5 flex items-center gap-4 animate-in slide-in-from-top duration-500">
-            <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center shrink-0">
-              <ShieldAlert size={20} className="text-white" />
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest leading-none mb-1">Bảo trì nguồn vốn</p>
-              <p className="text-[9px] font-bold text-gray-400 uppercase leading-tight">Nguồn vốn hiện tại đang được nạp thêm. Vui lòng quay lại sau ít phút.</p>
-            </div>
-          </div>
-        )}
-
         <div className="bg-[#111111] border border-white/5 rounded-[2.5rem] p-8 space-y-4">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-orange-500/10 rounded-2xl flex items-center justify-center">
-              <Wallet className="text-[#ff8c00]" size={28} />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-orange-500/10 rounded-2xl flex items-center justify-center">
+                <Wallet className="text-[#ff8c00]" size={28} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Hạn mức khả dụng</p>
+                <p className="text-2xl font-black text-white">{(userAvailableBalance).toLocaleString()} đ</p>
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Hạn mức khả dụng</p>
-              <p className="text-2xl font-black text-white">{(userAvailableBalance).toLocaleString()} đ</p>
+            <div className="flex flex-col items-end gap-2">
+              {isPreviousLoanPending && !hasOverdue && (
+                <div className="flex items-center gap-1.5 bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-500/20 animate-pulse">
+                  <Info size={12} className="text-blue-500" />
+                  <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest">Đang xét duyệt</span>
+                </div>
+              )}
+              {isSystemOutOfCapital && !hasOverdue && !isPreviousLoanPending && (
+                <div className="flex items-center gap-1.5 bg-orange-500/10 px-3 py-1.5 rounded-full border border-orange-500/20 animate-pulse">
+                  <ShieldAlert size={12} className="text-orange-500" />
+                  <span className="text-[8px] font-black text-orange-500 uppercase tracking-widest">Bảo trì vốn</span>
+                </div>
+              )}
             </div>
           </div>
+          
+          {(isPreviousLoanPending || isSystemOutOfCapital || isLimitReached || hasActiveOldCycle) && !hasOverdue && (
+            <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest text-center px-1">
+              {hasActiveOldCycle
+                  ? 'Vui lòng tất toán hết các khoản vay chu kỳ cũ'
+                  : isLimitReached
+                    ? 'Đã đạt giới hạn 5 khoản nợ'
+                    : isPreviousLoanPending 
+                        ? 'Đợi duyệt khoản vay trước' 
+                        : 'Hệ thống đang bảo trì vốn'}
+            </p>
+          )}
+
           <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
             <div 
               className="h-full bg-[#ff8c00] transition-all duration-1000" 
               style={{ width: `${(userAvailableBalance / totalLimitCap) * 100}%` }}
             ></div>
-          </div>
-        </div>
-
-        <div className="space-y-4 pt-4">
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-2 text-gray-400">
-              <FileText size={16} />
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em]">Hợp đồng đang thực hiện</h3>
-            </div>
-            {loans.length > 3 && (
-              <button 
-                onClick={() => setShowAllLoans(!showAllLoans)}
-                className="flex items-center gap-1 text-[9px] font-black text-[#ff8c00] uppercase tracking-widest hover:opacity-70 transition-opacity"
-              >
-                {showAllLoans ? 'Thu gọn' : 'Xem tất cả'} <ChevronRight size={10} className={`transform transition-transform ${showAllLoans ? '-rotate-90' : ''}`} />
-              </button>
-            )}
-          </div>
-          <div className="space-y-4">
-            {displayedLoans.map((loan, idx) => {
-               const [d, m, y] = loan.date.split('/').map(Number);
-               const dueDateObj = new Date(y, m - 1, d);
-               const isOverdue = (loan.status === 'ĐANG NỢ' || loan.status === 'CHỜ TẤT TOÁN') && dueDateObj < today;
-               const statusColor = getStatusColor(loan.status, isOverdue);
-
-               return (
-                <div 
-                  key={idx} 
-                  className={`bg-[#111111] border rounded-[2rem] p-6 flex flex-col group active:scale-[0.98] transition-all relative ${isOverdue ? 'border-red-600/30 bg-red-600/5' : 'border-white/5'}`}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-[#1a1a20] rounded-2xl flex items-center justify-center text-[#ff8c00]">
-                        <FileText size={22} />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest mb-1">{loan.id}</p>
-                        <h4 className="text-base font-black text-white leading-none">{loan.amount.toLocaleString()} đ</h4>
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <span className={`text-[8px] font-black uppercase ${statusColor}`}>
-                            {isOverdue ? 'QUÁ HẠN' : loan.status}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => setSelectedContract(loan)}
-                        className="w-10 h-10 bg-[#1a1a20] rounded-xl flex items-center justify-center text-gray-500 hover:bg-[#ff8c00] hover:text-black transition-all"
-                      >
-                        <Eye size={18} />
-                      </button>
-                      {(loan.status === 'ĐANG NỢ' || loan.status === 'ĐANG GIẢI NGÂN') && (
-                        <button 
-                          onClick={() => { setSettleLoan(loan); setStep(LoanStep.SETTLE_DETAIL); }}
-                          className="bg-white text-black font-black px-4 py-2 rounded-xl text-[9px] uppercase tracking-widest active:scale-95 transition-all"
-                        >
-                          Tất toán
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {loan.rejectionReason && (loan.status === 'BỊ TỪ CHỐI' || loan.status === 'ĐANG NỢ') && (
-                    <div className="mt-3 bg-red-500/5 border border-red-500/10 rounded-xl p-3 flex items-center gap-2">
-                      <AlertCircle size={14} className="text-red-500 shrink-0" />
-                      <p className="text-[9px] font-bold text-red-500/80 uppercase leading-tight">
-                        Lý do từ chối: {loan.rejectionReason}
-                      </p>
-                    </div>
-                  )}
-
-                  {isOverdue && (
-                    <div className="w-full flex justify-end mt-4">
-                      <div className="flex flex-col items-end">
-                        <p className="text-[8px] font-black text-gray-600 uppercase tracking-widest leading-none mb-1">Phí phạt quá hạn</p>
-                        <p className="text-sm font-black text-red-500 tracking-tight">{(loan.fine || 0).toLocaleString()} VNĐ</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-               );
-            })}
           </div>
         </div>
 
@@ -456,13 +413,13 @@ const LoanApplication: React.FC<LoanApplicationProps> = ({ user, loans, systemBu
           </div>
 
           {isLimitedByBudget && (
-            <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl animate-in zoom-in duration-300">
+            <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl animate-in zoom-in duration-300 flex flex-col items-center text-center">
                <div className="flex items-center gap-2 mb-1">
                   <AlertCircle size={14} className="text-red-500" />
                   <span className="text-[9px] font-black text-red-500 uppercase">Nguồn vốn giới hạn</span>
                </div>
-               <p className="text-[8px] font-bold text-gray-400 leading-tight uppercase">
-                 Hiện tại nguồn vốn hệ thống chỉ cho phép vay tối đa {systemBudget.toLocaleString()} đ. Hạn mức còn lại của bạn sẽ được mở sau khi ngân sách được nạp thêm.
+               <p className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">
+                 Tối đa {systemBudget.toLocaleString()} đ. Hạn mức sẽ mở lại sau khi nạp vốn.
                </p>
             </div>
           )}

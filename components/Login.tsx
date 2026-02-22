@@ -154,9 +154,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onNavigateRegister, error }) => 
 
         {/* Global Error Message from System */}
         {error && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-center gap-3 animate-in fade-in duration-300">
+          <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-center justify-center gap-3 animate-in fade-in duration-300">
             <AlertCircle size={18} className="text-red-500" />
-            <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">{error}</span>
+            <span className="text-[10px] font-black text-red-500 uppercase tracking-widest text-center">{error}</span>
           </div>
         )}
 
