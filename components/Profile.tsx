@@ -72,6 +72,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onBack, onLogout }) => {
           <div className="bg-[#111111] px-6 py-1.5 rounded-full border border-white/5">
             <span className="text-[9px] font-black text-gray-500 uppercase tracking-[0.2em]">{getRankName(user?.rank)}</span>
           </div>
+          <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest mt-1">ID: {user?.id}</p>
         </div>
       </div>
 
